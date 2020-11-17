@@ -9,5 +9,15 @@ All codes are under cleaning, and we will released all codes and pre-trained mod
 Besides, we further develop a GUI application to make it easier to use.
 
 
+## Citation
+```
+@InProceedings{lwb2019,
+    title={Liquid Warping GAN: A Unified Framework for Human Motion Imitation, Appearance Transfer and Novel View Synthesis},
+    author={Wen Liu and Zhixin Piao, Min Jie, Wenhan Luo, Lin Ma and Shenghua Gao},
+    booktitle={The IEEE International Conference on Computer Vision (ICCV)},
+    year={2019}
+}
+```
+
 
 
