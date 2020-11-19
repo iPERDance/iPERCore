@@ -4,7 +4,7 @@ human motion imitation, appearance transfer, and novel view synthesis. Currently
 IEEE TPAMI. It is an extension of our previous ICCV project [impersonator](https://github.com/svip-lab/impersonator), 
 and it has a more powerful ability in generalization and produces higher-resolution results  (512 x 512, 1024 x 1024) than the previous ICCV version.
 
-[[paper]](https://arxiv.org/pdf/2011.09055.pdf) [[website]](https://www.impersonator.org/work/impersonator-plus-plus.html)  [[Dataset]](https://svip-lab.github.io/dataset/iPER_dataset.html)
+[[paper]](https://arxiv.org/pdf/2011.09055.pdf) [[website]](https://www.impersonator.org/work/impersonator-plus-plus.html)  [[Dataset]](https://svip-lab.github.io/dataset/iPER_dataset.html) [[bilibili]](https://space.bilibili.com/1018066133)
 
 ![](https://www.impersonator.org/images/motion_results.png)
 
