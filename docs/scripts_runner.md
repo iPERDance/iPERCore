@@ -91,7 +91,7 @@ python demo/motion_imitate.py --gpu_ids 2 \
    --assets_dir "./assets"  \
    --model_id   "donald_trump_2" \
    --src_path   "path?=./assets/samples/sources/donald_trump_2/00000.PNG,name?=donald_trump_2" \
-   --ref_path   "path?=./assets/samples/references/videos/akun_2.mp4,name?=akun_2,pose_fc?=300"
+   --ref_path   "path?=./assets/samples/references/akun_2.mp4,name?=akun_2,pose_fc?=300"
 
 ```
 
@@ -105,7 +105,7 @@ python demo/motion_imitate.py --gpu_ids 2 \
    --assets_dir "./assets"  \
    --model_id   "donald_trump_2" \
    --src_path   "path?=./assets/samples/sources/donald_trump_2/00000.PNG,name?=donald_trump_2" \
-   --ref_path   "path?=./assets/samples/references/videos/akun_2.mp4,name?=akun_2,pose_fc?=300|./assets/samples/references/videos/mabaoguo.mp4,name?=mabaoguo,pose_fc?=400"
+   --ref_path   "path?=./assets/samples/references/akun_2.mp4,name?=akun_2,pose_fc?=300|path?=./assets/samples/references/mabaoguo_short.mp4,name?=mabaoguo_short,pose_fc?=400"
 ```
 
 
@@ -120,7 +120,7 @@ python demo/motion_imitate.py --gpu_ids 2 \
    --assets_dir "./assets"  \
    --model_id   "axing_1" \
    --src_path   "path?=./assets/samples/sources/axing_1,name?=axing_1" \
-   --ref_path   "path?=./assets/samples/references/videos/bantangzhuyi_1.mp4,name?=bantangzhuyi_1,pose_fc?=300"
+   --ref_path   "path?=./assets/samples/references/bantangzhuyi_1.mp4,name?=bantangzhuyi_1,pose_fc?=300"
 ```
 
 
@@ -135,7 +135,7 @@ python demo/motion_imitate.py --gpu_ids 2 \
    --assets_dir "./assets"  \
    --model_id   "afan_6=ns=2" \
    --src_path   "path?=./assets/samples/sources/afan_6/afan_6=ns=2,name?=afan_6=ns=2,bg_path?=./assets/samples/sources/afan_6/IMG_7217.JPG" \
-   --ref_path   "path?=./assets/samples/references/videos/akGexYZug2Q_2.mp4.mp4,name?=akGexYZug2Q_2,pose_fc?=300"
+   --ref_path   "path?=./assets/samples/references/akGexYZug2Q_2.mp4.mp4,name?=akGexYZug2Q_2,pose_fc?=300"
 ```
 
 ## Run your own custom inputs

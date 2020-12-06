@@ -6,14 +6,17 @@ import subprocess
 import sys
 import time
 
+from iPERCore.services.options.options_setup import setup
+from iPERCore.services.run_imitator import run_imitator
+
 
 ###############################################################################################
 ##                   Setting
 ###############################################################################################
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu_ids", type=str, default="0", help="the gpu ids.")
-parser.add_argument("--image_size", type=str, default="512", help="the image size.")
-parser.add_argument("--num_source", type=str, default="2", help="the number of sources.")
+parser.add_argument("--image_size", type=int, default=512, help="the image size.")
+parser.add_argument("--num_source", type=int, default=2, help="the number of sources.")
 parser.add_argument("--output_dir", type=str, default="./results", help="the output directory.")
 parser.add_argument("--assets_dir", type=str, default="./assets",
                     help="the assets directory. This is very important, and there are the configurations and "
@@ -104,16 +107,20 @@ if not os.path.exists(work_asserts_dir):
 
 args.cfg_path = osp.join(work_asserts_dir, "configs", "deploy.toml")
 
-# run wrapper
-cmd = [
-    sys.executable, "-m", "iPERCore.services.run_imitator",
-    "--gpu_ids", args.gpu_ids,
-    "--image_size", args.image_size,
-    "--num_source", args.num_source,
-    "--output_dir", args.output_dir,
-    "--model_id", args.model_id,
-    "--src_path", args.src_path,
-    "--ref_path", args.ref_path
-]
+# run imitator
+cfg = setup(args)
+run_imitator(cfg)
 
-subprocess.call(cmd)
+# # or use the system call wrapper
+# cmd = [
+#     sys.executable, "-m", "iPERCore.services.run_imitator",
+#     "--gpu_ids", args.gpu_ids,
+#     "--image_size", str(args.image_size),
+#     "--num_source", str(args.num_source),
+#     "--output_dir", args.output_dir,
+#     "--model_id", args.model_id,
+#     "--src_path", args.src_path,
+#     "--ref_path", args.ref_path
+# ]
+#
+# subprocess.call(cmd)

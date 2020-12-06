@@ -20,6 +20,8 @@ serial_batches = false
 # visualization
 verbose = true
 tb_visual = false
+ip = ""
+port = 0
 
 # Set the number of cores for Image Cropper, and 3D-Pose Estimation.
 # If num_workers is 0, then we will not use multi-processing.
