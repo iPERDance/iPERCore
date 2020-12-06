@@ -1,0 +1,19 @@
+model_path = "./assets/checkpoints/pose3d/smpl_model.pkl"
+prior_folder = "./assets/checkpoints/pose3d"
+
+focal_length = 5000
+
+num_smpl_joints=45
+ignore_joints=["Neck", "RHip", "LHip"]
+
+[LBFGS]
+# the hyper-parameters of LBFGS optimizer
+num_iters = 1
+step_size = 1.0
+
+[ADAM]
+# the hyper-parameters of ADAM optimizer
+num_iters = 100
+step_size = 0.01
+
+

@@ -1,1 +1,9 @@
-.idea
+*.idea
+assets/checkpoints
+assets/executables
+assets/pretrains
+assets/checkpoints.zip
+assets/executables.zip
+*venv
+*.pytest
+*debug*

@@ -1,0 +1,10 @@
+[model]
+name = "BODY_25"
+ckpt_path = "./assets/checkpoints/pose2d/openpose_body25.pth"
+
+[data]
+height_size = 368
+stride = 8
+upsample_ratio = 4
+multi_scales = [0.5, 1.0, 1.5, 2.0]
+

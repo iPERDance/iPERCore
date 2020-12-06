@@ -1,0 +1,12 @@
+seg_cfg_path="./assets/configs/detection/point_rend/point_rend_r50_caffe_fpn_mstrain_3x_coco.py"
+seg_ckpt_path="./assets/checkpoints/detection/point_rend_r50_caffe_fpn_mstrain_3x_coco-e0ebb6b7.pth"
+matting_cfg_path="./assets/configs/editing/mattors/gca/gca_r34_4x10_200k_comp1k.py"
+matting_ckpt_path="./assets/checkpoints/mattors/gca_r34_4x10_200k_comp1k_SAD-34.77_20200604_213848-4369bea0.pth"
+temp_dir="./assets/temp"
+
+person_label_index = 0
+trimap_control_size = 300
+matting_image_size = 512
+morph_kernel_size = 3
+erode_iter_num = 2
+dilate_iter_num = 7

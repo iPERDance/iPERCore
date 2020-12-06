@@ -1,0 +1,10 @@
+[model]
+name = "COCO-18"
+ckpt_path = "./assets/checkpoints/pose2d/mobilenet_body18.pth"
+
+[data]
+height_size = 256
+stride = 8
+upsample_ratio = 4
+multi_scales = [0.5, 1.0, 1.5, 2.0]
+joint_type = "Coco-Body-18"

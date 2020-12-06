@@ -1,0 +1,11 @@
+inpainting_cfg_path = "./assets/configs/editing/inpainting/deepfillv2/deepfillv2_256x256_8x2_places.py"
+inpainting_ckpt_path = "./assets/checkpoints/inpainting/deepfillv2_256x256_8x2_places_20200619-10d15793.pth"
+sr_cfg_path = "./assets/configs/editing/restorers/esrgan/esrgan_psnr_x4c64b23g32_g1_1000k_div2k.py"
+sr_ckpt_path = "./assets/checkpoints/restorers/esrgan_psnr_x4c64b23g32_1x16_1000k_div2k_20200420-bf5c993c.pth"
+temp_dir = "./assets/temp"
+
+inpainting_control_size = 256
+dilate_kernel_size = 11
+dilate_iter_num = 3
+use_sr = true
+

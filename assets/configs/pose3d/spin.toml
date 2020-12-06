@@ -1,0 +1,2 @@
+ckpt_path = "./assets/checkpoints/pose3d/spin_ckpt.pth"
+smpl_path = "./assets/checkpoints/pose3d/smpl_model.pkl"
