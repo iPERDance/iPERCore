@@ -335,11 +335,14 @@ def post_update_opt(opt):
         process_info = ProcessInfo(meta_proc)
         process_info.deserialize()
 
+        # check it has been processed successfully
         if process_info.check_has_been_processed(process_info.vid_infos, verbose=False):
             valid_meta_src_proc.append(meta_proc)
-
-        num_source = process_info.num_sources()
-        cur_num_source = max(cur_num_source, num_source)
+            num_source = process_info.num_sources()
+            cur_num_source = max(cur_num_source, num_source)
+        else:
+            # otherwise, clean this inputs
+            process_info.declare()
 
     meta_ref_proc = opt.meta_data["meta_ref"]
     valid_meta_ref_proc = []

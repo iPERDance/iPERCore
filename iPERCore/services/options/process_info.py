@@ -2,7 +2,7 @@ import os
 import numpy as np
 import warnings
 
-from iPERCore.tools.utils.filesio.persistence import mkdir, load_pickle_file, write_pickle_file
+from iPERCore.tools.utils.filesio.persistence import mkdir, load_pickle_file, write_pickle_file, clear_dir
 
 
 class ProcessInfo(object):
@@ -116,6 +116,9 @@ class ProcessInfo(object):
         vid_info_path = self.vid_infos["input_info"]["vid_info_path"]
         if os.path.exists(vid_info_path):
             self.vid_infos = load_pickle_file(vid_info_path)
+
+    def declare(self):
+        clear_dir(self.vid_infos["input_info"]["processed_dir"])
 
     @staticmethod
     def check_has_been_processed(context, verbose=False):
