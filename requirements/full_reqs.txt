@@ -3,7 +3,7 @@
 pip==20.2.4
 torch==1.7.0+cu101
 torchvision==0.8.1+cu101
-mmcv-full==latest+torch1.7.0+cu101
+mmcv-full==1.2.0+torch1.7.0+cu101
 numpy>=1.19.3
 scipy>=1.5.2
 scikit-image>=0.17.2
@@ -16,4 +16,3 @@ toml>=0.10.2
 git+https://github.com/open-mmlab/mmdetection.git@8179440ec5f75fe95484854af61ce6f6279f3bbc
 git+https://github.com/open-mmlab/mmediting@d4086aaf8a36ae830f1714aad585900d24ad1156
 git+https://github.com/iPERDance/neural_renderer.git@e5f54f71a8941acf372514eb92e289872f272653
-
