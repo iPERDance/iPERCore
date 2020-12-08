@@ -32,12 +32,12 @@ PRECOMPILED_TORCH_CUDA_PAIRS = {
     "1.6.0+cu102": {
         "torch": "1.6.0",
         "torchvision": "0.7.0",
-        "mmcv-full": "1.2.0+torch1.6.0+cu102"
+        "mmcv-full": "1.1.5+torch1.6.0+cu102"
     },
     "1.6.0+cu101": {
         "torch": "1.6.0+cu101",
         "torchvision": "0.7.0+cu101",
-        "mmcv-full": "1.2.0+torch1.6.0+cu101"
+        "mmcv-full": "1.1.5+torch1.6.0+cu101"
     },
     "1.5.0+cu102": {
         "torch": "1.5.0",
