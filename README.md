@@ -14,6 +14,7 @@ and it has a more powerful ability in generalization and produces higher-resolut
 
 ## Update News
 - [x] 12/06/2020, iPERCore-0.1, all the base codes. The motion imitation scripts.
+- [x] 12/10/2020, iPERCore-0.1.1, supports Windows.
 
 See the details of developing [logs](./docs/dev_logs.md).
 
