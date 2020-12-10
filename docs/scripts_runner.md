@@ -84,7 +84,7 @@ In this case, there is only a frontal body image as the source inputs.
 - imitates one references
 ```shell
 
-python demo/motion_imitate.py --gpu_ids 2 \
+python demo/motion_imitate.py --gpu_ids 0 \
    --image_size 512 \
    --num_source 2   \
    --output_dir "./results" \

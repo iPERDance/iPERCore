@@ -32,12 +32,35 @@ PRECOMPILED_TORCH_CUDA_PAIRS = {
     "1.6.0+cu102": {
         "torch": "1.6.0",
         "torchvision": "0.7.0",
-        "mmcv-full": "1.2.0+torch1.6.0+cu102"
+        "mmcv-full": "1.1.5+torch1.6.0+cu102"
     },
     "1.6.0+cu101": {
         "torch": "1.6.0+cu101",
         "torchvision": "0.7.0+cu101",
-        "mmcv-full": "1.2.0+torch1.6.0+cu101"
+        "mmcv-full": "1.1.5+torch1.6.0+cu101"
+    },
+    "1.5.0+cu102": {
+        "torch": "1.5.0",
+        "torchvision": "0.6.0",
+        "mmcv-full": "1.2.0+torch1.5.0+cu102"
+    },
+    "1.5.0+cu101": {
+        "torch": "1.5.0+cu101",
+        "torchvision": "0.6.0+cu101",
+        "mmcv-full": "1.2.0+torch1.5.0+cu101"
+    }
+}
+
+WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS = {
+    "1.6.0+cu102": {
+        "torch": "https://download.pytorch.org/whl/cu102/torch-1.6.0-cp{PYTHON_VERSION}-cp{PYTHON_VERSION}-win_amd64.whl",
+        "torchvision": "https://download.pytorch.org/whl/cu102/torchvision-0.7.0-cp{PYTHON_VERSION}-cp{PYTHON_VERSION}-win_amd64.whl",
+        "mmcv-full": "1.1.5+torch1.6.0+cu102"
+    },
+    "1.6.0+cu101": {
+        "torch": "https://download.pytorch.org/whl/cu101/torch-1.6.0-cp{PYTHON_VERSION}-cp{PYTHON_VERSION}-win_amd64.whl",
+        "torchvision": "https://download.pytorch.org/whl/cu101/torchvision-0.7.0-cp{PYTHON_VERSION}-cp{PYTHON_VERSION}-win_amd64.whl",
+        "mmcv-full": "1.1.5+torch1.6.0+cu101"
     },
     "1.5.0+cu102": {
         "torch": "1.5.0",
@@ -52,7 +75,19 @@ PRECOMPILED_TORCH_CUDA_PAIRS = {
 }
 
 
-def get_cuda_version():
+def get_cuda_version() -> float:
+    """
+        Get the cuda version of the system, make sure that the $CUDA_HOME or the $CUDA_PATH has been added into the system path.
+        Here the cuda version is aaa.b.ccc, and only return the version with aaa.b
+    Returns:
+        version (float): the cuda version.
+
+    """
+
+    # In windows, the cuda_install.exe will set the `CUDA_PATH` to the system environmental variables.
+    if "CUDA_HOME" not in os.environ and "CUDA_PATH" in os.environ:
+        os.environ["CUDA_HOME"] = os.environ["CUDA_PATH"]
+
     assert "CUDA_HOME" in os.environ, r"Cannot find the $CUDA_HOME in the environments. Please manually install the " \
                                       r"CUDA >= 10.1, and set the $CUDA_HOME environment variable."
 
@@ -76,6 +111,21 @@ def get_cuda_version():
     return version
 
 
+def get_python_version() -> str:
+    """
+        Get the python version. The python version is aaa.b.c, and it only returns aaa.b
+    Returns:
+        version (str):
+    """
+
+    version = str(platform.python_version())
+    version = "".join(version.split(".")[0:2])
+
+    assert "36" <= version <= "38", f"Currently, it only support the python version with 3.6.+, 3.7.+, 3.8.+"
+
+    return version
+
+
 def platform_dependencies():
     """Parse the pre-complied consistent versions of torch, torchvision, mmcv, and CUDA.
     The torch version must >= 1.6.0, and the CUDA version must >= 10.1.
@@ -87,7 +137,7 @@ def platform_dependencies():
         List[List[str]]: list of setup requirements items.
 
     """
-    global TORCH_DIST, MMCV_DIST, PRECOMPILED_TORCH_CUDA_PAIRS
+    global TORCH_DIST, MMCV_DIST, PRECOMPILED_TORCH_CUDA_PAIRS, WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS
 
     cuda_version = get_cuda_version()
     cuda_version_str = str(cuda_version).replace(".", "")
@@ -95,12 +145,22 @@ def platform_dependencies():
     packages = []
 
     if platform.system().lower() == "windows":
+        python_version = get_python_version()
         torch_cuda_version = f"1.6.0+cu{cuda_version_str}"
         numpy_version = "numpy==1.19.3"
 
-        assert torch_cuda_version in PRECOMPILED_TORCH_CUDA_PAIRS, \
+        assert torch_cuda_version in WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS, \
             f"There is no pre-complied pytorch 1.6.0 with CUDA {cuda_version}, " \
             f"and you might need to install pytorch 1.6.0 with CUDA {cuda_version} from source."
+
+        torch_link = WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torch"].format(PYTHON_VERSION=python_version)
+        torchvision_link = WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torchvision"].format(PYTHON_VERSION=python_version)
+        mmcv_version = WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["mmcv-full"]
+
+        packages.append([f"{torch_link}", "-f", TORCH_DIST])
+        packages.append([f"{torchvision_link}", "-f", TORCH_DIST])
+        packages.append([f"mmcv-full=={mmcv_version}", "-f", MMCV_DIST])
+        packages.append(numpy_version)
 
     elif platform.system().lower() == "linux":
         torch_cuda_version = f"1.7.0+cu{cuda_version_str}"
@@ -110,17 +170,17 @@ def platform_dependencies():
             f"There is no pre-complied pytorch 1.7.0 with CUDA {cuda_version}, " \
             f"and you might need to install pytorch 1.7.0 with CUDA {cuda_version} from source."
 
+        torch_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torch"]
+        torchvision_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torchvision"]
+        mmcv_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["mmcv-full"]
+
+        packages.append([f"torch=={torch_version}", "-f", TORCH_DIST])
+        packages.append([f"torchvision=={torchvision_version}", "-f", TORCH_DIST])
+        packages.append([f"mmcv-full=={mmcv_version}", "-f", MMCV_DIST])
+        packages.append(numpy_version)
+
     else:
         raise ValueError(f"Currently it only supports 'windows' and 'linux'.")
-
-    torch_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torch"]
-    torchvision_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torchvision"]
-    mmcv_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["mmcv-full"]
-
-    packages.append([f"torch=={torch_version}", "-f", TORCH_DIST])
-    packages.append([f"torchvision=={torchvision_version}", "-f", TORCH_DIST])
-    packages.append([f"mmcv-full=={mmcv_version}", "-f", MMCV_DIST])
-    packages.append(numpy_version)
 
     return packages
 
@@ -224,7 +284,7 @@ for package_line in all_requires:
 # 5. setup iPERCore
 setup(
     name="iPERCore",
-    version="0.1",
+    version="0.1.1",
     author="Wen Liu, and Zhixin Piao",
     author_email="liuwen@shanghaitech.edu.cn",
     url="https://github.com/iPERDance/iPERCore",
