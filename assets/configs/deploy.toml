@@ -112,8 +112,8 @@ vcodec = "h264"
 pix_fmt = "yuv420p"
 
 [MultiMedia.ffmpeg.Windows]
-ffmpeg_exe_path = "./asssets/executables/ffmpeg-4.3.1-win64-static/bin/ffmpeg.exe"
-ffprobe_exe_path = "./asssets/executables/ffmpeg-4.3.1-win64-static/bin/ffprobe.exe"
+ffmpeg_exe_path = "./assets/executables/ffmpeg-4.3.1-win64-static/bin/ffmpeg.exe"
+ffprobe_exe_path = "./assets/executables/ffmpeg-4.3.1-win64-static/bin/ffprobe.exe"
 
 [MultiMedia.ffmpeg.Linux]
 ffmpeg_exe_path = "ffmpeg"

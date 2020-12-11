@@ -107,9 +107,11 @@ if not os.path.exists(work_asserts_dir):
 
 args.cfg_path = osp.join(work_asserts_dir, "configs", "deploy.toml")
 
-# run imitator
-cfg = setup(args)
-run_imitator(cfg)
+
+if __name__ == "__main__":
+    # run imitator
+    cfg = setup(args)
+    run_imitator(cfg)
 
 # # or use the system call wrapper
 # cmd = [

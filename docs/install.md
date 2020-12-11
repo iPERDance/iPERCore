@@ -3,7 +3,7 @@
 ## System Dependencies
  - Linux (test on Ubuntu 16.04 and 18.04) or Windows (test on windows 10)
  - CUDA 10.1, 10.2, or 11.0 with Nvidia GPU.
- - gcc 7.5+ in Linux (needs to support C++14) or MSVC++ in Windows.
+ - gcc in Linux (supports C++14 and tests on 7.5+ ) or MSVC++ (supports C++14) in Windows.
  - ffmpeg (ffprobe) test on 4.3.1+.
  
  
@@ -58,7 +58,7 @@ Install iPERCore by running the follows
 python setup.py develop
 ```
 
-It might takes 5-10 min. When you see `Finished processing dependencies for iPERCore==0.1` in the console screen, it means
+It might takes 5-10 min. When you see `Finished processing dependencies for iPERCore==0.1.1` in the console screen, it means
 you have installed the `iPERCore` successfully.
 
 
