@@ -155,12 +155,12 @@ def setup(opt):
     cfg = load_cfg(opt.cfg_path)
     update_cfg(opt, cfg)
 
-    # set the meta data directories
-    cfg.meta_data = load_meta_data(cfg)
-
     # get and set gpus
     set_envs(cfg)
 
+    # set the meta data directories
+    cfg.meta_data = load_meta_data(cfg)
+    
     # print and save args to file
     save_cfg(cfg)
 
