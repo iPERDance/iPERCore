@@ -14,7 +14,7 @@ IEEE TPAMI. It is an extension of our previous ICCV project [impersonator](https
 and it has a more powerful ability in generalization and produces higher-resolution results  (512 x 512, 1024 x 1024) than the previous ICCV version.
 
 |  🧾 Colab Notebook  | Released (Windows)  |   📑 Paper    | 📱 Website | 📂 Dataset | 💡 Bilibili | ✒ Forum |
-  |------------|------------|-------------|-----------|-----------|-----------|-----------|
+ :-: | :-: | :-: | :-: | :-: | :-: | :-: |
 | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1bwUnj-9NnJA2EMr7eWO4I45UuBtKudg_?usp=sharing) | [[Usage]](https://github.com/iPERDance/iPERCore/wiki/How-to-use-the-released-version-on-windows%3F) | [paper](https://arxiv.org/pdf/2011.09055.pdf) | [website](https://www.impersonator.org/work/impersonator-plus-plus.html) | [Dataset](https://svip-lab.github.io/dataset/iPER_dataset.html) | [bilibili](https://space.bilibili.com/1018066133) | [Forum](https://discuss.impersonator.org/)|
 
 
