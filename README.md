@@ -25,6 +25,9 @@ and it has a more powerful ability in generalization and produces higher-resolut
 See more details, including system dependencies, python requirements and setups in [install.md](./docs/install.md).
 Please follows the instructions in [install.md](./docs/install.md) to install this firstly.
 
+## Reference Docs
+https://docs.contour.so/iPERDance/iPERCore/getting-started
+
 ## Run demos
 
 ### 1. Run on Google Colab 
