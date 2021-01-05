@@ -6,10 +6,8 @@ import subprocess
 import sys
 import re
 
-
 TORCH_DIST = "https://download.pytorch.org/whl/torch_stable.html"
 MMCV_DIST = "https://download.openmmlab.com/mmcv/dist/index.html"
-
 
 PIP_VERSION = "20.2.4"
 
@@ -53,24 +51,14 @@ PRECOMPILED_TORCH_CUDA_PAIRS = {
 
 WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS = {
     "1.6.0+cu102": {
-        "torch": "https://download.pytorch.org/whl/cu102/torch-1.6.0-cp{PYTHON_VERSION}-cp{PYTHON_VERSION}-win_amd64.whl",
-        "torchvision": "https://download.pytorch.org/whl/cu102/torchvision-0.7.0-cp{PYTHON_VERSION}-cp{PYTHON_VERSION}-win_amd64.whl",
+        "torch": "https://download.pytorch.org/whl/cu102/torch-1.6.0-cp{PYTHON_VERSION}-cp{PYTHON_ABI_VERSION}-win_amd64.whl",
+        "torchvision": "https://download.pytorch.org/whl/cu102/torchvision-0.7.0-cp{PYTHON_VERSION}-cp{PYTHON_ABI_VERSION}-win_amd64.whl",
         "mmcv-full": "1.1.5+torch1.6.0+cu102"
     },
     "1.6.0+cu101": {
-        "torch": "https://download.pytorch.org/whl/cu101/torch-1.6.0-cp{PYTHON_VERSION}-cp{PYTHON_VERSION}-win_amd64.whl",
-        "torchvision": "https://download.pytorch.org/whl/cu101/torchvision-0.7.0-cp{PYTHON_VERSION}-cp{PYTHON_VERSION}-win_amd64.whl",
+        "torch": "https://download.pytorch.org/whl/cu101/torch-1.6.0%2Bcu101-cp{PYTHON_VERSION}-cp{PYTHON_ABI_VERSION}-win_amd64.whl",
+        "torchvision": "https://download.pytorch.org/whl/cu101/torchvision-0.7.0%2Bcu101-cp{PYTHON_VERSION}-cp{PYTHON_ABI_VERSION}-win_amd64.whl",
         "mmcv-full": "1.1.5+torch1.6.0+cu101"
-    },
-    "1.5.0+cu102": {
-        "torch": "1.5.0",
-        "torchvision": "0.6.0",
-        "mmcv-full": "1.2.0+torch1.5.0+cu102"
-    },
-    "1.5.0+cu101": {
-        "torch": "1.5.0+cu101",
-        "torchvision": "0.6.0+cu101",
-        "mmcv-full": "1.2.0+torch1.5.0+cu101"
     }
 }
 
@@ -106,7 +94,7 @@ def get_cuda_version() -> float:
     # "10.1.243" -> "10.1" -> 10.1
     version = float(".".join(version.split(".")[0:2]))
 
-    assert version >= 10.1,  f"CUDA Version {version} <= 10.1. Please manually install the CUDA >= 10.1"
+    assert version >= 10.1, f"CUDA Version {version} <= 10.1. Please manually install the CUDA >= 10.1"
 
     return version
 
@@ -146,6 +134,10 @@ def platform_dependencies():
 
     if platform.system().lower() == "windows":
         python_version = get_python_version()
+        python_abi_version = python_version
+        if python_version != "38":
+            python_abi_version += "m"
+
         torch_cuda_version = f"1.6.0+cu{cuda_version_str}"
         numpy_version = "numpy==1.19.3"
 
@@ -153,8 +145,11 @@ def platform_dependencies():
             f"There is no pre-complied pytorch 1.6.0 with CUDA {cuda_version}, " \
             f"and you might need to install pytorch 1.6.0 with CUDA {cuda_version} from source."
 
-        torch_link = WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torch"].format(PYTHON_VERSION=python_version)
-        torchvision_link = WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torchvision"].format(PYTHON_VERSION=python_version)
+        torch_link = WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torch"] \
+            .format(PYTHON_VERSION=python_version, PYTHON_ABI_VERSION=python_abi_version)
+        torchvision_link = WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torchvision"] \
+            .format(PYTHON_VERSION=python_version, PYTHON_ABI_VERSION=python_abi_version)
+
         mmcv_version = WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["mmcv-full"]
 
         packages.append([f"{torch_link}", "-f", TORCH_DIST])
@@ -279,7 +274,6 @@ for package_line in all_requires:
 
     print(" ".join(pip_install_line))
     subprocess.run(pip_install_line)
-
 
 # 5. setup iPERCore
 setup(
