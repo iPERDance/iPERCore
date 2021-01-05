@@ -3,7 +3,7 @@
 ## System Dependencies
  - Linux (test on Ubuntu 16.04 and 18.04) or Windows (test on windows 10)
  - CUDA 10.1, 10.2, or 11.0 with Nvidia GPU.
- - gcc in Linux (supports C++14 and tests on 7.5+ ) or MSVC++ (supports C++14) in Windows.
+ - gcc in Linux (supports C++14 and tests on 7.5+ ) or MSVC++ (Visual Studio 2019, supports C++14) in Windows.
  - ffmpeg (ffprobe) test on 4.3.1+.
  
  
