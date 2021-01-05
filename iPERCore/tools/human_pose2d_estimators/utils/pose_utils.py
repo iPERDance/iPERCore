@@ -1,3 +1,6 @@
+# original file comes from Copyright (c) 2018 algo, https://github.com/Daniil-Osokin/lightweight-human-pose-estimation.pytorch/blob/master/modules/pose.py
+# this modified file Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 import cv2
 import numpy as np
 

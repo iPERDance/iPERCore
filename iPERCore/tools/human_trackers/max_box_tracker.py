@@ -1,3 +1,5 @@
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 import numpy as np
 from typing import List, Union, Tuple
 from tqdm import tqdm

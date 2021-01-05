@@ -1,3 +1,5 @@
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 import abc
 from enum import Enum, unique
 

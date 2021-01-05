@@ -1,3 +1,5 @@
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 from __future__ import absolute_import, division, print_function
 from visdom import Visdom
 import numpy as np

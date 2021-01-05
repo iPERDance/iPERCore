@@ -1,9 +1,10 @@
-import torch
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 import torch.nn as nn
 import numpy as np
 
 
-def batch_orth_proj_idrot(X, camera, device="cpu"):
+def batch_orth_proj_idrot(X, camera):
     """
     X is N x num_points x 3
     camera is N x 3

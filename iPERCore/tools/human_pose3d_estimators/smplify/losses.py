@@ -1,3 +1,6 @@
+# original file comes from Copyright (c) 2019, University of Pennsylvania, Max Planck Institute for Intelligent Systems. All rights reserved.
+# original file: https://github.com/nkolot/SPIN/blob/master/smplify/losses.py
+
 import torch
 
 from . import constants

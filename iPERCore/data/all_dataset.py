@@ -1,3 +1,5 @@
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 from torch.utils.data import ConcatDataset
 import numpy as np
 import os.path

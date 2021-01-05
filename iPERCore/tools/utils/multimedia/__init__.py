@@ -1,3 +1,5 @@
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 from .mediafiles import is_image_file, is_video_file, IMG_EXTENSIONS, VIDEO_EXTENSION
 from .video import (
     frames2video,

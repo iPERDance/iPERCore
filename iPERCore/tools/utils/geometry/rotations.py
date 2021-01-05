@@ -1,11 +1,8 @@
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 import torch
 from torch.nn import functional as F
 import numpy as np
-
-"""
-Useful geometric operations, e.g. Perspective projection and a differentiable Rodrigues formula
-Parts of the code are taken from https://github.com/MandyMo/pytorch_HMR
-"""
 
 
 def rotation_matrix_to_quaternion(rotation_matrix, eps=1e-6):

@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-# @Time    : 2020/8/22 12:18 上午
-# @Author  : Zhixin Piao 
-# @Email   : piaozhx@shanghaitech.edu.cn
-# @Editor  : Wen Liu, liuwen@shanghaitech.edu.cn
-# @See     :
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 
 import torch
 import json
