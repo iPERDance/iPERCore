@@ -25,6 +25,16 @@ and it has a more powerful ability in generalization and produces higher-resolut
 See more details, including system dependencies, python requirements and setups in [install.md](./docs/install.md).
 Please follows the instructions in [install.md](./docs/install.md) to install this firstly.
 
+**Notice that `imags_size=512` need at least 9.8GB GPU memory.** if you are using a middle-level GPU(e.g. RTX 2060), you should change the `image_size` to 384 or 256. The following table can be used as a reference:
+
+| image_size | preprocess | personalize | run_imitator | recommended gpu                    |
+| ---------- | ---------- | ----------- | ------------ | ---------------------------------- |
+| 256x256    | 3.1 GB     | 4.3 GB      | 1.1 GB       | RTX 2060 / RTX 2070                |
+| 384x384    | 3.1 GB     | 7.9 GB      | 1.5 GB       | GTX 1080Ti / RTX 2080Ti / Titan Xp |
+| 512x512    | 3.1 GB     | 9.8 GB      | 2 GB         | GTX 1080Ti / RTX 2080Ti / Titan Xp |
+| 1024x1024  | 3.1 GB     | 20 GB       | -            | RTX Titan / P40 / V100 32G         |
+
+
 ## Run demos
 
 ### 1. Run on Google Colab 
