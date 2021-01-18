@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-# @Time    : 2019-08-02 18:31
-# @Author  : Zhixin Piao, Wen Liu
-# @Email   : piaozhx@shanghaitech.edu.cn, liuwen@shanghaitech.edu.cn
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
 
 import os
 import cv2

@@ -1,3 +1,5 @@
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 import numpy as np
 import math
 import cv2

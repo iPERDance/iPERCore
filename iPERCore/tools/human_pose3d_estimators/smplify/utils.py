@@ -1,3 +1,5 @@
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -9,7 +11,7 @@ class JointMapper(nn.Module):
         if joint_maps is None:
             self.joint_maps = joint_maps
         else:
-            self.register_buffer('joint_maps',
+            self.register_buffer("joint_maps",
                                  torch.tensor(joint_maps, dtype=torch.long))
 
     def forward(self, joints, **kwargs):
@@ -25,7 +27,7 @@ class GMoF(nn.Module):
         self.rho = rho
 
     def extra_repr(self):
-        return 'rho = {}'.format(self.rho)
+        return "rho = {}".format(self.rho)
 
     def forward(self, residual):
         squared_res = residual ** 2
@@ -33,8 +35,8 @@ class GMoF(nn.Module):
         return self.rho ** 2 * dist
 
 
-def smpl_to_openpose(model_type='smplx', use_hands=True, use_face=True,
-                     use_face_contour=False, openpose_format='coco25'):
+def smpl_to_openpose(model_type="smplx", use_hands=True, use_face=True,
+                     use_face_contour=False, openpose_format="coco25"):
     """
     Returns the indices of the permutation that maps OpenPose to SMPL
     Args:
@@ -52,12 +54,12 @@ def smpl_to_openpose(model_type='smplx', use_hands=True, use_face=True,
         permutation (np.ndarray or None): indices of the permutation that maps OpenPose to SMPL.
     """
 
-    if openpose_format.lower() == 'coco25':
-        if model_type == 'smpl':
+    if openpose_format.lower() == "coco25":
+        if model_type == "smpl":
             return np.array([24, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5, 8, 1, 4,
                              7, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34],
                             dtype=np.int32)
-        elif model_type == 'smplh':
+        elif model_type == "smplh":
             body_mapping = np.array([52, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5,
                                      8, 1, 4, 7, 53, 54, 55, 56, 57, 58, 59,
                                      60, 61, 62], dtype=np.int32)
@@ -72,7 +74,7 @@ def smpl_to_openpose(model_type='smplx', use_hands=True, use_face=True,
                 mapping += [lhand_mapping, rhand_mapping]
             return np.concatenate(mapping)
         # SMPLX
-        elif model_type == 'smplx':
+        elif model_type == "smplx":
             body_mapping = np.array([55, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5,
                                      8, 1, 4, 7, 56, 57, 58, 59, 60, 61, 62,
                                      63, 64, 65], dtype=np.int32)
@@ -94,13 +96,13 @@ def smpl_to_openpose(model_type='smplx', use_hands=True, use_face=True,
 
             return np.concatenate(mapping)
         else:
-            raise ValueError('Unknown model type: {}'.format(model_type))
-    elif openpose_format == 'coco19':
-        if model_type == 'smpl':
+            raise ValueError("Unknown model type: {}".format(model_type))
+    elif openpose_format == "coco19":
+        if model_type == "smpl":
             return np.array([24, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5, 8,
                              1, 4, 7, 25, 26, 27, 28],
                             dtype=np.int32)
-        elif model_type == 'smplh':
+        elif model_type == "smplh":
             body_mapping = np.array([52, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5,
                                      8, 1, 4, 7, 53, 54, 55, 56],
                                     dtype=np.int32)
@@ -115,7 +117,7 @@ def smpl_to_openpose(model_type='smplx', use_hands=True, use_face=True,
                 mapping += [lhand_mapping, rhand_mapping]
             return np.concatenate(mapping)
         # SMPLX
-        elif model_type == 'smplx':
+        elif model_type == "smplx":
             body_mapping = np.array([55, 12, 17, 19, 21, 16, 18, 20, 0, 2, 5,
                                      8, 1, 4, 7, 56, 57, 58, 59],
                                     dtype=np.int32)
@@ -137,6 +139,6 @@ def smpl_to_openpose(model_type='smplx', use_hands=True, use_face=True,
 
             return np.concatenate(mapping)
         else:
-            raise ValueError('Unknown model type: {}'.format(model_type))
+            raise ValueError("Unknown model type: {}".format(model_type))
     else:
-        raise ValueError('Unknown joint format: {}'.format(openpose_format))
+        raise ValueError("Unknown joint format: {}".format(openpose_format))

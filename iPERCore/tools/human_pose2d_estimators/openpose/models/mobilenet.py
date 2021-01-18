@@ -1,3 +1,6 @@
+# Copyright (c) 2018 algo,
+# https://github.com/Daniil-Osokin/lightweight-human-pose-estimation.pytorch/blob/master/models/with_mobilenet.py
+
 import torch
 from torch import nn
 

@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-# @Time    : 2020/8/11 8:49 下午
-# @Author  : Zhixin Piao
-# @Email   : piaozhx@shanghaitech.edu.cn
-# @Editor  : Wen Liu, liuwen@shanghaitech.edu.cn
-# @See     : test file is /toos/tests/human_mattors_inpaintors_test.py
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
 
 import time
 import torch

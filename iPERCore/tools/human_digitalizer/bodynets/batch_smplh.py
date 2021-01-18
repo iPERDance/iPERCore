@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-# @Time    : 2020/8/23 4:25 下午
-# @Author  : Zhixin Piao
-# @Email   : piaozhx@shanghaitech.edu.cn
+# The modification of https://github.com/vchoutas/smplx/blob/master/smplx/body_models.py
 
 import os
 import os.path as osp

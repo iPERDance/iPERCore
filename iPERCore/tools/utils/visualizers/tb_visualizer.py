@@ -1,3 +1,5 @@
+# https://github.com/albertpumarola/GANimation/blob/master/utils/tb_visualizer.py
+
 import os
 import time
 from tensorboardX import SummaryWriter

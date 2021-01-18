@@ -1,14 +1,22 @@
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 import cv2
 import numpy as np
 import os
 import os.path as osp
 from typing import Union, List, Tuple
+import platform
+import shutil
 
 from iPERCore.tools.utils.filesio.persistence import mkdir
 from iPERCore.tools.utils.multimedia import is_image_file, is_video_file, video2frames
 
 
 def format_imgs_dir(src_path, imgs_dir):
+
+    if not osp.exists(src_path):
+        raise FileNotFoundError(f"{src_path} does not exist. Please provide a existing path.")
+
     if is_image_file(src_path):
         # if `src_path` is a image path, the the image will be copied to `output_dir/frames`.
         imgs_dir = mkdir(imgs_dir)
@@ -16,7 +24,12 @@ def format_imgs_dir(src_path, imgs_dir):
 
         # create a symbolic link
         if src_path != dst_path and not osp.exists(dst_path):
-            os.symlink(osp.abspath(src_path), osp.abspath(dst_path))
+
+            # TODO, handle the Privilege Error (WinError 1314) of os.symlink in Windows? Need help.
+            if platform.system().lower() == "windows":
+                shutil.copy(src_path, dst_path)
+            else:
+                os.symlink(osp.abspath(src_path), osp.abspath(dst_path))
 
     elif is_video_file(src_path):
         imgs_dir = mkdir(imgs_dir)
@@ -27,12 +40,17 @@ def format_imgs_dir(src_path, imgs_dir):
         # * if `src_path` is a directory that contains multiple images, then these images will
         # be copied to `output_dir/frames`.
         if src_path != imgs_dir and not osp.exists(imgs_dir):
-            import platform
-            os.symlink(osp.abspath(src_path), osp.abspath(imgs_dir),
-                       target_is_directory=(platform.system() == 'Windows'))
+
+            # TODO, handle the Privilege Error (WinError 1314) of os.symlink in Windows? Need help.
+            if platform.system().lower() == "windows":
+                if osp.exists(imgs_dir):
+                    shutil.rmtree(imgs_dir)
+                shutil.copytree(src_path, imgs_dir)
+            else:
+                os.symlink(osp.abspath(src_path), osp.abspath(imgs_dir))
 
     else:
-        raise ValueError('imgs_dir {} is not image path, video path and image directory.'.format(imgs_dir))
+        raise ValueError("imgs_dir {} is not image path, video path and image directory.".format(imgs_dir))
 
     return imgs_dir
 
@@ -209,7 +227,7 @@ def process_crop_img(orig_img, active_bbox, image_size):
         crop_img = np.pad(
             array=crop_img,
             pad_width=((pad_1, pad_2), (0, 0), (0, 0)),
-            mode='edge'
+            mode="edge"
         )
         start_pt -= np.array([0, pad_1], dtype=np.float32)
 
@@ -217,7 +235,7 @@ def process_crop_img(orig_img, active_bbox, image_size):
         crop_img = np.pad(
             array=crop_img,
             pad_width=((0, 0), (pad_1, pad_2), (0, 0)),
-            mode='edge'
+            mode="edge"
         )
         start_pt -= np.array([pad_1, 0], dtype=np.float32)
 
@@ -234,11 +252,11 @@ def process_crop_img(orig_img, active_bbox, image_size):
 
     return {
         # return original too with info.
-        'image': proc_img,
-        'im_shape': orig_img.shape[0:2],
-        'center': center,
-        'scale': scale,
-        'start_pt': start_pt,
+        "image": proc_img,
+        "im_shape": orig_img.shape[0:2],
+        "center": center,
+        "scale": scale,
+        "start_pt": start_pt,
     }
 
 

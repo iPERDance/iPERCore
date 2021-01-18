@@ -1,3 +1,5 @@
+# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
+
 import os
 from easydict import EasyDict
 from pprint import pprint
@@ -112,12 +114,15 @@ def load_meta_data(cfg):
 
 
 def set_envs(cfg):
-    # set gpu
+    # set gpu, the gpu ids are 0 (single gpu) or 0,1,2,3 (multi-gpus)
     os.environ["CUDA_DEVICES_ORDER"] = "PCI_BUS_ID"
     if len(cfg.gpu_ids) > 0:
         os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu_ids
     else:
         os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+    # parse the "4,5,8,9" (multi-gpu if used) to ["4", "5", "8", "9"]
+    cfg.gpu_ids = cfg.gpu_ids.split(",")
 
     # set ffmpeg related flags
     os.environ["ffmpeg_vcodec"] = cfg.MultiMedia.ffmpeg.vcodec
@@ -155,12 +160,12 @@ def setup(opt):
     cfg = load_cfg(opt.cfg_path)
     update_cfg(opt, cfg)
 
-    # set the meta data directories
-    cfg.meta_data = load_meta_data(cfg)
-
     # get and set gpus
     set_envs(cfg)
 
+    # set the meta data directories
+    cfg.meta_data = load_meta_data(cfg)
+    
     # print and save args to file
     save_cfg(cfg)
 
