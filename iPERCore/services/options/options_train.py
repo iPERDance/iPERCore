@@ -8,21 +8,18 @@ class TrainOptions(BaseOptions):
     def initialize(self):
         BaseOptions.initialize(self)
 
-        self._parser.add_argument("--dataset_mode", type=str, default="iPER", help="chooses dataset to be used")
-        self._parser.add_argument("--train_ids_file", type=str, default="train.txt", help="file containing train ids")
-        self._parser.add_argument("--test_ids_file", type=str, default="val.txt", help="file containing test ids")
+        self._parser.add_argument("--dataset_mode", type=str, default="ProcessedVideo",
+                                  help="chooses dataset to be used")
+
+        self._parser.add_argument("--dataset_dirs", type=str, nargs="*",
+                                  default=["/p300/tpami/datasets/fashionvideo",
+                                           "/p300/tpami/datasets/iPER",
+                                           "/p300/tpami/datasets/motionSynthetic"],
+                                  help="the directory of all processed datasets.")
 
         # use place dataset if need
-        self._parser.add_argument("--place_dir", type=str, default="/p300/places365_standard", help="place folder")
-
-        # use iPER dataset
-        self._parser.add_argument("--iPER_dir", type=str, default="", help="iPER dataset folder")
-
-        # use deep fashion dataset if need
-        self._parser.add_argument("--fashion_dir", type=str, default="", help="place folder")
-
-        # use deep fashion dataset if need
-        self._parser.add_argument("--motion_synthetic_dir", type=str, default="", help="motion synthetic folder")
+        self._parser.add_argument("--background_dir", type=str, default="/p300/places365_standard",
+                                  help="the directory of background inpainting dataset, e.g Place2.")
 
         self.is_train = True
 

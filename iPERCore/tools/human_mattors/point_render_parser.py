@@ -105,22 +105,29 @@ class PointRenderGCAMattor(object):
             img_path (str): the image path
 
         Returns:
+            has_person (bool): whether there is person or not.
             segm_mask (np.ndarray): (h, w)
             trimap (np.ndarray): (h, w)
         """
         result = inference_detector(self.detection_model, img_path)
         bbox_result, segm_result = result
+        num_people = len(bbox_result[0])
 
-        # (src_h, src_w) 0 or 1
-        # in COCO dataset, `0` represents the person,
-        # segm_result[self.person_label_index] represents all the results of Person,
-        # segm_result[self.person_label_index][0] represents the first Person segmentation result.
-        segm_mask = segm_result[self.person_label_index][0].astype(np.float32)
+        has_person = num_people > 0
+        if has_person:
+            # (src_h, src_w) 0 or 1
+            # in COCO dataset, `0` represents the person,
+            # segm_result[self.person_label_index] represents all the results of Person,
+            # segm_result[self.person_label_index][0] represents the first Person segmentation result.
+            segm_mask = segm_result[self.person_label_index][0].astype(np.float32)
 
-        # (src_h, src_w) 0 or 128 or 255
-        trimap = self.generate_trimap(segm_mask)
+            # (src_h, src_w) 0 or 128 or 255
+            trimap = self.generate_trimap(segm_mask)
+        else:
+            segm_mask = []
+            trimap = []
 
-        return segm_mask, trimap
+        return has_person, segm_mask, trimap
 
     def run_matting(self, img_or_path):
         """
@@ -132,6 +139,7 @@ class PointRenderGCAMattor(object):
             img_or_path (str or np.ndarray): (h, w, 3) is in the range of [0, 255] with BGR channel space.
 
         Returns:
+            has_person (bool): whether there is person or not.
             segm_mask (np.ndarray): (h, w), 0 or 1
             trimap (np.ndarray): (h, w), 0 or 128, or 255;
             pred_alpha (np.ndarray): (h, w), is in the range of [0, 1], np.float32
@@ -140,7 +148,11 @@ class PointRenderGCAMattor(object):
         # TODO, do not write the middle outputs to disk, and make them in memory.
         #  scaled_src_path, scaled_trimap_path
 
-        img_name = str(time.time())
+        # img_name = str(time.time())
+        # img_path = os.path.join(self.temp_dir, img_name)
+
+        path = os.path.normpath(img_or_path)
+        img_name = path.replace(os.sep, "_")
         img_path = os.path.join(self.temp_dir, img_name)
 
         if isinstance(img_or_path, str):
@@ -149,29 +161,31 @@ class PointRenderGCAMattor(object):
             src_img = img_or_path.copy()
 
         # 1. run detection, instance segmentation and generate trimap
-        segm_mask, trimap = self.run_detection(img_or_path)
+        has_person, segm_mask, trimap = self.run_detection(img_or_path)
+        pred_alpha = []
 
-        # 2. run matting algorithm
-        scaled_src_path = img_path + '.matting.png'
-        scaled_trimap_path = img_path + '.trimap.png'
+        if has_person:
+            # 2. run matting algorithm
+            scaled_src_path = img_path + '.matting.png'
+            scaled_trimap_path = img_path + '.trimap.png'
 
-        origin_h, origin_w = src_img.shape[:2]
-        scaled_size = compute_scaled_size((origin_w, origin_h), control_size=self.matting_image_size)
-        scaled_src_img = cv2.resize(src_img, scaled_size)
-        scaled_trimap = cv2.resize(trimap, scaled_size, interpolation=cv2.INTER_NEAREST)
-        cv2.imwrite(scaled_src_path, scaled_src_img)
-        cv2.imwrite(scaled_trimap_path, scaled_trimap)
+            origin_h, origin_w = src_img.shape[:2]
+            scaled_size = compute_scaled_size((origin_w, origin_h), control_size=self.matting_image_size)
+            scaled_src_img = cv2.resize(src_img, scaled_size)
+            scaled_trimap = cv2.resize(trimap, scaled_size, interpolation=cv2.INTER_NEAREST)
+            cv2.imwrite(scaled_src_path, scaled_src_img)
+            cv2.imwrite(scaled_trimap_path, scaled_trimap)
 
-        # (scaled_h, scaled_w) [0, 1]
-        pred_alpha = matting_inference(self.matting_model, scaled_src_path, scaled_trimap_path)
+            # (scaled_h, scaled_w) [0, 1]
+            pred_alpha = matting_inference(self.matting_model, scaled_src_path, scaled_trimap_path)
 
-        # (origin_h, origin_w) [0, 1]
-        pred_alpha = cv2.resize(pred_alpha, (origin_w, origin_h))
+            # (origin_h, origin_w) [0, 1]
+            pred_alpha = cv2.resize(pred_alpha, (origin_w, origin_h))
 
-        os.remove(scaled_src_path)
-        os.remove(scaled_trimap_path)
+            os.remove(scaled_src_path)
+            os.remove(scaled_trimap_path)
 
-        return segm_mask, trimap, pred_alpha
+        return has_person, segm_mask, trimap, pred_alpha
 
     def run(self, src_dir, out_dir, src_img_names=None, save_visual=True):
         """
@@ -202,21 +216,25 @@ class PointRenderGCAMattor(object):
 
         mask_outs = []
         alpha_outs = []
-        for img_name in tqdm(processed_img_names):
+        valid_ids = []
+        for ids, img_name in enumerate(tqdm(processed_img_names)):
             img_path = os.path.join(src_dir, img_name)
-            segm_mask, trimap, pred_alpha = self.run_matting(img_path)
+            has_person, segm_mask, trimap, pred_alpha = self.run_matting(img_path)
 
-            name = img_name.split('.')[0]
-            mask_path = os.path.join(out_dir, name + "_mask.png")
-            alpha_path = os.path.join(out_dir, name + "_alpha.png")
+            if has_person:
+                valid_ids.append(ids)
 
-            cv2.imwrite(alpha_path, (pred_alpha * 255).astype(np.uint8))
-            cv2.imwrite(mask_path, (segm_mask * 255).astype(np.uint8))
+                name = img_name.split('.')[0]
+                mask_path = os.path.join(out_dir, name + "_mask.png")
+                alpha_path = os.path.join(out_dir, name + "_alpha.png")
 
-            mask_outs.append(mask_path)
-            alpha_outs.append(alpha_path)
+                cv2.imwrite(alpha_path, (pred_alpha * 255).astype(np.uint8))
+                cv2.imwrite(mask_path, (segm_mask * 255).astype(np.uint8))
 
-            if save_visual:
-                cv2.imwrite(os.path.join(out_dir, name + "trimap.png"), trimap)
+                mask_outs.append(mask_path)
+                alpha_outs.append(alpha_path)
 
-        return True, mask_outs, alpha_outs
+                if save_visual:
+                    cv2.imwrite(os.path.join(out_dir, name + "trimap.png"), trimap)
+
+        return valid_ids, mask_outs, alpha_outs

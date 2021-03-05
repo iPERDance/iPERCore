@@ -629,7 +629,6 @@ class SchpMattor(object):
             out_dir (str or None):
             src_file_list (list of str or None):
             target (str): "body" or "skirt+dress";
-            use_matting (bool):
             save_visual (bool):
 
         Returns:
@@ -702,7 +701,6 @@ class SchpMattor(object):
 if __name__ == "__main__":
     device = torch.device("cuda:0")
     human_parser = SchpMattor(
-        dataset="pascal-person",
         restore_weight="./assets/pretrains/exp-schp-pascal-person-part.pth",
         device=device
     )

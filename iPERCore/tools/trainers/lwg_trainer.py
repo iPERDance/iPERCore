@@ -307,9 +307,9 @@ class LWGTrainerABC(BaseTrainerModel, abc.ABC):
 
     def update_learning_rate(self):
         # updated learning rate G
-        final_lr = self._opt.final_lr
+        final_lr = self._train_opts.final_lr
 
-        lr_decay_G = (self._opt.lr_G - final_lr) / self._opt.nepochs_decay
+        lr_decay_G = (self._train_opts.lr_G - final_lr) / self._train_opts.niters_or_epochs_decay
         self._current_lr_G -= lr_decay_G
         for param_group in self._optimizer_G.param_groups:
             param_group["lr"] = self._current_lr_G
@@ -317,7 +317,7 @@ class LWGTrainerABC(BaseTrainerModel, abc.ABC):
 
         if self._use_gan:
             # update learning rate D
-            lr_decay_D = (self._opt.lr_D - final_lr) / self._opt.nepochs_decay
+            lr_decay_D = (self._train_opts.lr_D - final_lr) / self._train_opts.niters_or_epochs_decay
             self._current_lr_D -= lr_decay_D
             for param_group in self._optimizer_D.param_groups:
                 param_group["lr"] = self._current_lr_D
@@ -402,7 +402,7 @@ class LWGAugBGTrainer(LWGTrainerABC):
             aug_bg = inputs["bg"].to(device, non_blocking=True)
             smpls = inputs["smpls"].to(device, non_blocking=True)
             masks = inputs["masks"].to(device, non_blocking=True)
-            offsets = inputs["offsets"].to(device, non_blocking=True)
+            offsets = inputs["offsets"].to(device, non_blocking=True) if "offsets" in inputs else 0
             links_ids = inputs["links_ids"].to(device, non_blocking=True) if "links_ids" in inputs else None
 
             ns = self._ns

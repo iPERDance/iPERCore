@@ -9,20 +9,20 @@ from .dataset import DatasetBase
 from .transforms import ImageNormalizeToTensor
 
 
-class PlaceDataset(DatasetBase):
+class Place2Dataset(DatasetBase):
 
     def __init__(self, opt, is_for_train):
-        super(PlaceDataset, self).__init__(opt, is_for_train)
-        self._name = 'PlaceDataset'
+        super(Place2Dataset, self).__init__(opt, is_for_train)
+        self._name = "Place2Dataset"
         self._read_dataset_paths()
 
     def _read_dataset_paths(self):
         if self._is_for_train:
-            sub_folder = 'train'
+            sub_folder = "train"
         else:
-            sub_folder = 'val'
+            sub_folder = "val"
 
-        self._data_dir = os.path.join(self._opt.place_dir, sub_folder)
+        self._data_dir = os.path.join(self._opt.background_dir, sub_folder)
 
         self.dataset = datasets.ImageFolder(self._data_dir, transform=self._transform)
 
@@ -33,10 +33,10 @@ class PlaceDataset(DatasetBase):
         return self.dataset[item][0]
 
     def _create_transform(self):
-        image_size = self._opt.bg_size
+        image_size = self._opt.image_size
         transforms.ToTensor()
         transform_list = [
-            transforms.RandomResizedCrop(image_size, scale=(0.7, 1.0)),
+            transforms.RandomResizedCrop(image_size, scale=(0.75, 1.1)),
             transforms.RandomHorizontalFlip(),
             ImageNormalizeToTensor()]
         self._transform = transforms.Compose(transform_list)

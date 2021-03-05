@@ -7,7 +7,7 @@ from .options_setup import setup
 
 class BaseOptions(object):
     def __init__(self):
-        self._parser = argparse.ArgumentParser()
+        self._parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         self._initialized = False
         self.is_train = False
 
@@ -39,7 +39,9 @@ class BaseOptions(object):
         # gpu settings
         self._parser.add_argument("--gpu_ids", type=str, default="0",
                                   help="gpu ids: e.g. 0  0,1,2, 0,2.")
-        self._parser.add_argument("--no_cudnn", action="store_true",
+        self._parser.add_argument("--local_rank", type=int, default=0,
+                                  help="the local rank for distributed training.")
+        self._parser.add_argument("--use_cudnn", action="store_true",
                                   help="whether to use cudnn or not, if true, do not use.")
 
         # meta-data settings

@@ -9,6 +9,31 @@ from iPERCore.tools.utils.filesio.persistence import mkdir, load_toml_file, writ
 from iPERCore.services.options.meta_info import parse_src_input, parse_ref_input, MetaProcess
 
 
+def recursive_update_item(sub_models, val, cfg):
+    """
+
+    Args:
+        sub_models (list of str):
+        val (Any):
+        cfg (EasyDict):
+
+    Returns:
+        cfg (EasyDict):
+    """
+
+    if len(sub_models) == 0:
+        return cfg
+
+    top_key = sub_models[0]
+    if len(sub_models) == 1:
+        cfg[top_key] = val
+    else:
+        top_sub_cfg = cfg[top_key]
+        cfg[top_key] = recursive_update_item(sub_models[1:], val, top_sub_cfg)
+
+    return cfg
+
+
 def update_cfg(opt, cfg):
     """
 
@@ -21,7 +46,11 @@ def update_cfg(opt, cfg):
     """
 
     for key, val in opt.__dict__.items():
-        cfg[key] = val
+        # cfg[key] = val
+
+        # "." as the separator
+        sub_modules = key.split(".")
+        recursive_update_item(sub_modules, val, cfg)
 
 
 def load_cfg(cfg_path):
@@ -113,7 +142,7 @@ def load_meta_data(cfg):
     return meta_data
 
 
-def set_envs(cfg):
+def set_gpus(cfg):
     # set gpu, the gpu ids are 0 (single gpu) or 0,1,2,3 (multi-gpus)
     os.environ["CUDA_DEVICES_ORDER"] = "PCI_BUS_ID"
     if len(cfg.gpu_ids) > 0:
@@ -124,6 +153,8 @@ def set_envs(cfg):
     # parse the "4,5,8,9" (multi-gpu if used) to ["4", "5", "8", "9"]
     cfg.gpu_ids = cfg.gpu_ids.split(",")
 
+
+def set_multi_media(cfg):
     # set ffmpeg related flags
     os.environ["ffmpeg_vcodec"] = cfg.MultiMedia.ffmpeg.vcodec
     os.environ["ffmpeg_yuv420p"] = cfg.MultiMedia.ffmpeg.pix_fmt
@@ -135,6 +166,16 @@ def set_envs(cfg):
 
     os.environ["ffmpeg_exe_path"] = multimedia_ffmpeg_cfg["ffmpeg_exe_path"]
     os.environ["ffprobe_exe_path"] = multimedia_ffmpeg_cfg["ffprobe_exe_path"]
+
+
+def set_envs(cfg):
+
+    # set gpus envs
+    set_gpus(cfg)
+
+    # set multi-media envs, including ffmpeg
+    if "MultiMedia" in cfg:
+        set_multi_media(cfg)
 
 
 def save_cfg(cfg):

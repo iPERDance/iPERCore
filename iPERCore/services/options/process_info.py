@@ -47,6 +47,9 @@ class ProcessInfo(object):
             "valid_img_info": {
                 "names": [],
                 "ids": [],
+                "crop_ids": [],         # crop to all indexes
+                "pose3d_ids": [],       # pose3d to crop
+                "parse_ids": [],        # parse to pose3d
                 "stage": ""
             },
 
@@ -179,13 +182,14 @@ def read_ref_infos(vid_infos):
     return formated_vid_infos
 
 
-def read_src_infos(vid_infos, num_source, num_verts=6890):
+def read_src_infos(vid_infos, num_source, num_verts=6890, ignore_bg=False):
     """
 
     Args:
         vid_infos (dict):
         num_source:
         num_verts:
+        ignore_bg (bool)
 
     Returns:
         formated_vid_infos (dict): the formated video information, and it contains the followings,
@@ -200,16 +204,19 @@ def read_src_infos(vid_infos, num_source, num_verts=6890):
 
     # 1.2 valid_img_info
     valid_img_info = vid_infos["valid_img_info"]
-    valid_img_names = valid_img_info["names"]
-    valid_img_ids = valid_img_info["ids"]
+    valid_img_names = valid_img_info["names"].copy()
+    # valid_img_ids = valid_img_info["ids"].copy()
 
     # 2. 3D pose information
     processed_pose3d = vid_infos["processed_pose3d"]
-    smpls = np.concatenate(
+    estimated_smpls = np.concatenate(
         [processed_pose3d["cams"],
          processed_pose3d["pose"],
          processed_pose3d["shape"]], axis=-1
     )
+
+    # take the smpls with parsing results.
+    smpls = estimated_smpls[valid_img_info["parse_ids"]]
 
     assert len(smpls) == len(valid_img_names), f"the length of smpls = {len(smpls)} != the length of " \
                                                f"images = {len(valid_img_names)}."
@@ -218,16 +225,12 @@ def read_src_infos(vid_infos, num_source, num_verts=6890):
     front_info = vid_infos["processed_front_info"]
 
     if num_source == 1:
-        ft_ids = front_info["ft"]["ids"][0:1]
-        bk_ids = front_info["bk"]["ids"][0:1]
         src_ids = front_info["ft"]["ids"][0:1]
     else:
         half_ns = num_source // 2
-        ft_ids = front_info["ft"]["ids"][0:half_ns]
-        bk_ids = front_info["bk"]["ids"][0:half_ns]
-        src_ids = ft_ids + bk_ids
-
-    # print(vid_infos)
+        sample_ft_ids = front_info["ft"]["ids"][0:half_ns]
+        sample_bk_ids = front_info["bk"]["ids"][0:half_ns]
+        src_ids = sample_ft_ids + sample_bk_ids
 
     cur_src_num = len(src_ids)
     if cur_src_num < num_source:
@@ -235,16 +238,17 @@ def read_src_infos(vid_infos, num_source, num_verts=6890):
         pad_ids = np.random.choice(src_ids, need_pad)
         src_ids += list(pad_ids)
 
-    if ft_ids[0] != valid_img_ids[0]:
-        warnings.warn(f"the first image {valid_img_names[0]} is not the frontal wise image.")
-
-        old = valid_img_ids[0]
-        new = ft_ids[0]
-
-        # swap `old` and `new`
-        valid_img_ids[new], valid_img_ids[old] = valid_img_ids[old], valid_img_ids[new]
-        valid_img_names[new], valid_img_names[old] = valid_img_names[old], valid_img_names[new]
-        smpls[new], smpls[old] = smpls[old], smpls[new]
+    # print(src_ids[0], valid_img_ids[0], valid_img_names[0])
+    # if src_ids[0] != valid_img_ids[0]:
+    #     warnings.warn(f"the first image {valid_img_names[0]} is not the frontal wise image.")
+    #
+    #     old = valid_img_ids[0]
+    #     new = src_ids[0]
+    #
+    #     # swap `old` and `new`
+    #     valid_img_ids[new], valid_img_ids[old] = valid_img_ids[old], valid_img_ids[new]
+    #     valid_img_names[new], valid_img_names[old] = valid_img_names[old], valid_img_names[new]
+    #     smpls[new], smpls[old] = smpls[old], smpls[new]
 
     # # 4. load parsing info list
     alpha_paths = []
@@ -262,50 +266,54 @@ def read_src_infos(vid_infos, num_source, num_verts=6890):
         else:
             alpha_paths.append(alpha_path)
 
-        if not os.path.exists(mask_path):
-            warnings.warn(f"{mask_path} does not exist.")
-        else:
+        if os.path.exists(mask_path):
             mask_paths.append(mask_path)
 
-    # 6. actual background.
-    out_actual_bg_dir = vid_infos["out_actual_bg_dir"]
-    actual_bg_names = os.listdir(out_actual_bg_dir)
-    num_bg = len(actual_bg_names)
+    if not ignore_bg:
+        # 6. actual background.
+        out_actual_bg_dir = vid_infos["out_actual_bg_dir"]
+        actual_bg_names = os.listdir(out_actual_bg_dir)
+        num_bg = len(actual_bg_names)
 
-    if num_bg > 1:
-        warnings.warn(f"{out_actual_bg_dir} has more than 1 background images, "
-                      f"and they are {out_actual_bg_dir}. Here we take the first background image.")
+        if num_bg > 1:
+            warnings.warn(f"{out_actual_bg_dir} has more than 1 background images, "
+                          f"and they are {out_actual_bg_dir}. Here we take the first background image.")
 
-    if num_bg > 0:
-        actual_bg_path = os.path.join(out_actual_bg_dir, actual_bg_names[0])
+        if num_bg > 0:
+            actual_bg_path = os.path.join(out_actual_bg_dir, actual_bg_names[0])
+        else:
+            actual_bg_path = None
+
+        # 7. pre background inpainted images, if use additional inpaintor.
+        processed_background = vid_infos["processed_background"]
+        inpainted_suffix = processed_background["inpainted_suffix"]
+        replaced_suffix = processed_background["replaced_suffix"]
+        bg_replace = processed_background["replace"]
+
+        inpainted_paths = []
+        replaced_paths = []
+        for ids in src_ids:
+            name = valid_img_names[ids]
+            name = name.split(".")[0]
+            inpainted_name = name + inpainted_suffix
+            replaced_name = name + replaced_suffix
+
+            inpainted_path = os.path.join(out_bg_dir, inpainted_name)
+            replaced_path = os.path.join(out_bg_dir, replaced_name)
+
+            if not os.path.exists(inpainted_path):
+                warnings.warn(f"{inpainted_path} does not exist.")
+            else:
+                inpainted_paths.append(inpainted_path)
+
+            if bg_replace and not os.path.exists(replaced_path):
+                warnings.warn(f"{replaced_path} does not exist.")
+            else:
+                replaced_paths.append(replaced_path)
     else:
-        actual_bg_path = None
-
-    # 7. pre background inpainted images, if use additional inpaintor.
-    processed_background = vid_infos["processed_background"]
-    inpainted_suffix = processed_background["inpainted_suffix"]
-    replaced_suffix = processed_background["replaced_suffix"]
-    bg_replace = processed_background["replace"]
-
-    inpainted_paths = []
-    replaced_paths = []
-    for name in valid_img_names:
-        name = name.split(".")[0]
-        inpainted_name = name + inpainted_suffix
-        replaced_name = name + replaced_suffix
-
-        inpainted_path = os.path.join(out_bg_dir, inpainted_name)
-        replaced_path = os.path.join(out_bg_dir, replaced_name)
-
-        if not os.path.exists(inpainted_path):
-            warnings.warn(f"{inpainted_path} does not exist.")
-        else:
-            inpainted_paths.append(inpainted_path)
-
-        if bg_replace and not os.path.exists(replaced_path):
-            warnings.warn(f"{replaced_path} does not exist.")
-        else:
-            replaced_paths.append(replaced_path)
+        inpainted_paths = []
+        replaced_paths = []
+        actual_bg_path = []
 
     # 8. load digital deformation, including offsets and links.
     processed_deform = vid_infos["processed_deform"]
@@ -318,14 +326,15 @@ def read_src_infos(vid_infos, num_source, num_verts=6890):
     formated_vid_infos = {
         "input_info": vid_infos["input_info"],
         "img_dir": out_img_dir,
+        "bg_dir": out_bg_dir,
         "images": valid_img_names,
         "smpls": smpls,
         "offsets": offsets,
         "links": links,
         "length": len(smpls),
         "src_ids": src_ids,
-        "ft_ids": ft_ids,
-        "bk_ids": bk_ids,
+        "ft_ids": front_info["ft"]["ids"],
+        "bk_ids": front_info["bk"]["ids"],
         "alpha_paths": alpha_paths,
         "mask_paths": mask_paths,
         "inpainted_paths": inpainted_paths,

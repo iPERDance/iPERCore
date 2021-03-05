@@ -266,7 +266,7 @@ class SMPLRenderer(nn.Module):
         # lighting
         faces_lighting = nr.vertices_to_faces(vertices, faces)
 
-        # TODO: this will replace the textures, so, clone `textures` at frist.
+        # TODO: this will replace the textures, so, clone `textures` at first.
         textures = textures.clone()
         textures = nr.lighting(
             faces_lighting,

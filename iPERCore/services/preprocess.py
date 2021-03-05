@@ -3,6 +3,7 @@
 import os
 import torch
 import numpy as np
+import warnings
 from multiprocessing import Queue, Process
 
 from iPERCore.tools.processors.preprocessors import Preprocessor
@@ -147,7 +148,7 @@ class HumanDigitalDeformConsumer(Process):
                     process_info["processed_deform"]["offsets"] = offsets
 
                 else:
-                    raise ValueError("there is no digital type of {}".format(self.opt.digital_type))
+                    warnings.warn(f"there is no digital type of {self.opt.digital_type}")
 
                 process_info["has_run_deform"] = True
                 process_info.serialize()
@@ -210,10 +211,11 @@ class HumanDigitalDeformConsumer(Process):
 
         # 1. load the processed information by PreprocessConsumer
         src_infos = process_info.convert_to_src_info(self.opt.num_source)
+        src_ids = src_infos["src_ids"][0]
 
         # 2. prepare the inputs information
-        img_path = os.path.join(src_infos["img_dir"], src_infos["images"][0])
-        init_smpls = src_infos["smpls"][0:1]
+        img_path = os.path.join(src_infos["img_dir"], src_infos["images"][src_ids])
+        init_smpls = src_infos["smpls"][src_ids:src_ids+1]
 
         prepared_info = {
             "img_path": img_path,
@@ -253,11 +255,13 @@ def human_estimate(opt) -> None:
 
     if need_to_process > 0:
         MAX_PER_GPU_PROCESS = opt.Preprocess.MAX_PER_GPU_PROCESS
-        per_gpu_process = int(np.floor(need_to_process / len(opt.gpu_ids)))
-        used_gpus = opt.gpu_ids * min(MAX_PER_GPU_PROCESS, per_gpu_process)
+        per_gpu_process = int(np.ceil(need_to_process / len(opt.gpu_ids)))
+        candidate_gpu_process = opt.gpu_ids * min(MAX_PER_GPU_PROCESS, per_gpu_process)
+        num_gpu_process = min(len(candidate_gpu_process), need_to_process)
 
         consumers = []
-        for gpu_id in used_gpus:
+        for gpu_process_id in range(num_gpu_process):
+            gpu_id = candidate_gpu_process[gpu_process_id]
             consumer = PreprocessConsumer(
                 que, gpu_id, opt
             )
@@ -300,12 +304,16 @@ def digital_deform(opt) -> None:
 
     if need_to_process > 0:
         MAX_PER_GPU_PROCESS = opt.Preprocess.MAX_PER_GPU_PROCESS
-        per_gpu_process = int(np.floor(need_to_process / len(opt.gpu_ids)))
-        used_gpus = opt.gpu_ids * min(MAX_PER_GPU_PROCESS, per_gpu_process)
+        per_gpu_process = int(np.ceil(need_to_process / len(opt.gpu_ids)))
+        candidate_gpu_process = opt.gpu_ids * min(MAX_PER_GPU_PROCESS, per_gpu_process)
+        num_gpu_process = min(len(candidate_gpu_process), need_to_process)
 
         consumers = []
-        for gpu_id in used_gpus:
-            consumer = HumanDigitalDeformConsumer(que, gpu_id, opt)
+        for gpu_process_id in range(num_gpu_process):
+            gpu_id = candidate_gpu_process[gpu_process_id]
+            consumer = HumanDigitalDeformConsumer(
+                que, gpu_id, opt
+            )
             consumers.append(consumer)
 
         # all processors start

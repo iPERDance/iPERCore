@@ -11,7 +11,6 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 from torch.utils.data.distributed import DistributedSampler
 
-from iPERCore.services.options.options_train import TrainOptions
 from iPERCore.tools.utils.visualizers.tb_visualizer import TBVisualizer
 from iPERCore.data.dataset import DatasetFactory
 from iPERCore.tools.trainers import create_trainer
@@ -22,21 +21,20 @@ def my_worker_init_fn(worker_id):
 
 
 class Train(object):
-    def __init__(self):
-        self._setup()
+    def __init__(self, args):
+        self._setup(args)
         self._train()
 
-    def _setup(self):
-        args = TrainOptions().parse()
-
-        if not args.no_cudnn:
+    def _setup(self, args):
+        if args.use_cudnn:
             # cudnn related setting
             cudnn.benchmark = True
             cudnn.deterministic = False
             cudnn.enabled = True
+
         gpus = args.gpu_ids
         distributed = len(gpus) > 1
-        device = torch.device('cuda:{}'.format(args.local_rank))
+        device = torch.device("cuda:{}".format(args.local_rank))
 
         if distributed:
             torch.cuda.set_device(args.local_rank)
@@ -100,8 +98,8 @@ class Train(object):
         self._tb_visualizer = TBVisualizer(args)
 
         if args.local_rank == 0:
-            print('#train video clips = %d' % self._train_size)
-            print('#test video clips = %d' % self._test_size)
+            print("#train video clips = %d" % self._train_size)
+            print("#test video clips = %d" % self._test_size)
 
     def _train(self):
         self._total_steps = self._opt.load_epoch * self._train_size
@@ -111,7 +109,8 @@ class Train(object):
         self._last_save_latest_time = None
         self._last_print_time = time.time()
 
-        for i_epoch in range(self._opt.load_epoch + 1, self._opt.nepochs_no_decay + self._opt.nepochs_decay + 1):
+        for i_epoch in range(self._opt.load_epoch + 1,
+                             self._opt.Train.niters_or_epochs_no_decay + self._opt.Train.niters_or_epochs_decay + 1):
             epoch_start_time = time.time()
 
             # train epoch
@@ -119,34 +118,25 @@ class Train(object):
 
             if self._check_is_major_rank():
                 # save model
-                print('saving the model at the end of epoch %d, iters %d' % (i_epoch, self._total_steps))
+                print("saving the model at the end of epoch %d, iters %d" % (i_epoch, self._total_steps))
                 self._model.save(i_epoch)
 
                 # print epoch info
                 time_epoch = time.time() - epoch_start_time
-                print('End of epoch %d / %d \t Time Taken: %d sec (%d min or %d h)' %
-                      (i_epoch, self._opt.nepochs_no_decay + self._opt.nepochs_decay, time_epoch,
-                       time_epoch / 60, time_epoch / 3600))
+                print("End of epoch %d / %d \t Time Taken: %d sec (%d min or %d h)" %
+                      (i_epoch, self._opt.Train.niters_or_epochs_no_decay + self._opt.Train.niters_or_epochs_decay, 
+                       time_epoch, time_epoch / 60, time_epoch / 3600))
 
             # update learning rate
-            if i_epoch > self._opt.nepochs_no_decay:
+            if self._check_need_update_lr(i_epoch):
                 self._model.update_learning_rate()
-
-    def _check_visual_or_print_save(self, cur_time):
-        is_local_rank = self._opt.local_rank == 0
-
-        do_visuals = (self._last_display_time is None or
-                      cur_time - self._last_display_time > self._opt.display_freq_s)
-
-        do_print = cur_time - self._last_print_time > self._opt.print_freq_s or do_visuals
-
-        do_save = (self._last_save_latest_time is None) or \
-                  (cur_time - self._last_save_latest_time > self._opt.save_latest_freq_s)
-
-        return (do_visuals and is_local_rank), (do_print and is_local_rank), (do_save and is_local_rank)
 
     def _check_is_major_rank(self):
         return self._opt.local_rank == 0
+
+    def _check_need_update_lr(self, i_epoch):
+        return i_epoch >= self._opt.Train.niters_or_epochs_no_decay and \
+            i_epoch != self._opt.Train.niters_or_epochs_no_decay + self._opt.Train.niters_or_epochs_decay
 
     def _train_epoch(self, i_epoch):
         is_major_rank = self._check_is_major_rank()
@@ -156,12 +146,14 @@ class Train(object):
             iter_start_time = time.time()
 
             # display flags
-            do_visuals = self._last_display_time is None or time.time() - self._last_display_time > self._opt.display_freq_s
-            do_print_terminal = time.time() - self._last_print_time > self._opt.print_freq_s or do_visuals
+            do_visuals = self._last_display_time is None or iter_start_time - self._last_display_time > self._opt.Train.display_freq_s
+            do_print_terminal = iter_start_time - self._last_print_time > self._opt.Train.print_freq_s or do_visuals
+            do_save = (self._last_save_latest_time is None) or \
+                      (iter_start_time - self._last_save_latest_time > self._opt.Train.save_latest_freq_s)
 
             # train model
             self._model.set_input(train_batch, self._device)
-            trainable = (i_train_batch+1) % self._opt.train_G_every_n_iterations == 0
+            trainable = (i_train_batch+1) % self._opt.Train.train_G_every_n_iterations == 0
             self._model.optimize_parameters(keep_data_for_visuals=do_visuals and is_major_rank, trainable=trainable)
 
             # update epoch info
@@ -169,16 +161,25 @@ class Train(object):
             epoch_iter += self._opt.batch_size
 
             if is_major_rank:
+                iter_end_time = time.time()
+
                 # display terminal
                 if do_print_terminal:
                     self._display_terminal(iter_start_time, i_epoch, i_train_batch, do_visuals)
-                    self._last_print_time = time.time()
+                    self._last_print_time = iter_end_time
 
                 # display visualizer
                 if do_visuals:
+                    print("visualizing on Tensorboard.")
                     self._display_visualizer_train(self._total_steps)
                     self._display_visualizer_val(i_epoch, self._total_steps)
-                    self._last_display_time = time.time()
+                    self._last_display_time = iter_end_time
+
+                if do_save:
+                    # save model
+                    print("saving the model at the end of epoch %d, iters %d" % (i_epoch, self._total_steps))
+                    self._model.save(i_epoch)
+                    self._last_save_latest_time = iter_end_time
 
     def _display_terminal(self, iter_start_time, i_epoch, i_train_batch, visuals_flag):
         errors = self._model.get_current_errors()
@@ -199,7 +200,7 @@ class Train(object):
         # evaluate self._opt.num_iters_validate epochs
         val_errors = OrderedDict()
         for i_val_batch, val_batch in enumerate(self._testloader):
-            if i_val_batch == self._opt.num_iters_validate:
+            if i_val_batch == self._opt.Train.num_iters_validate:
                 break
 
             # evaluate model
@@ -216,7 +217,7 @@ class Train(object):
 
         # normalize errors
         for k in val_errors:
-            val_errors[k] /= self._opt.num_iters_validate
+            val_errors[k] /= self._opt.Train.num_iters_validate
 
         # visualize
         t = (time.time() - val_start_time)
@@ -228,5 +229,8 @@ class Train(object):
         self._model.set_train()
 
 
-if __name__ == '__main__':
-    Train()
+if __name__ == "__main__":
+    from iPERCore.services.options.options_train import TrainOptions
+
+    cfg = TrainOptions().parse()
+    Train(cfg)

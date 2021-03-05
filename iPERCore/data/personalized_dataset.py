@@ -28,7 +28,7 @@ class PersonalizedDataset(VideoDataset):
         self._dataset_size = 0
         self._num_videos = 0
         self._meta_process_list = meta_process_list
-        self._read_dataset_paths()
+        self._read_vids_info()
 
     @property
     def num_videos(self):
@@ -44,7 +44,7 @@ class PersonalizedDataset(VideoDataset):
         #  Thus, we need to carefully control the termination in the training loop .
         return max(1000, self._dataset_size)
 
-    def _read_dataset_paths(self):
+    def _read_vids_info(self):
         vid_infos_list = []
 
         for meta_process in self._meta_process_list:
@@ -91,6 +91,7 @@ class PersonalizedDataset(VideoDataset):
         alpha_paths = vid_info["alpha_paths"]
         replaced_paths = vid_info["replaced_paths"]
         actual_bg_path = vid_info["actual_bg_path"]
+        bg_dir = vid_info["bg_dir"]
 
         if length < self._opt.time_step:
             replace = True
@@ -117,10 +118,10 @@ class PersonalizedDataset(VideoDataset):
         images = []
         masks = []
         pseudo_bgs = []
-        bg_img_paths = []
 
         for t in pair_ids:
-            image_path = os.path.join(img_dir, images_name[t])
+            name = images_name[t]
+            image_path = os.path.join(img_dir, name)
             image = cv_utils.read_cv2_img(image_path)
             images.append(image)
 
@@ -130,17 +131,25 @@ class PersonalizedDataset(VideoDataset):
             mask = 1.0 - mask
             masks.append(mask)
 
-            bg_img_paths.append(replaced_paths[t])
-
-        if actual_bg_path is not None:
-            bg_img_paths = [actual_bg_path] * len(pair_ids)
-
         if self._share_bg:
-            random_ids = np.random.randint(0, len(pair_ids))
-            bg_img = cv_utils.read_cv2_img(bg_img_paths[random_ids])
+            if actual_bg_path is not None:
+                bg_path = actual_bg_path
+            else:
+                bg_path = np.random.choice(replaced_paths)
+            bg_img = cv_utils.read_cv2_img(bg_path)
             bg_img = cv_utils.normalize_img(bg_img, image_size=self._opt.image_size, transpose=True)
             pseudo_bgs = bg_img
         else:
+            if actual_bg_path is not None:
+                bg_img_paths = [actual_bg_path] * len(src_ids)
+            else:
+                bg_img_paths = []
+                for s_id in src_ids:
+                    name = images_name[s_id]
+                    bg_name = name.split(".")[0] + "_replaced.png"
+                    bg_path = os.path.join(bg_dir, bg_name)
+                    bg_img_paths.append(bg_path)
+
             for bg_path in bg_img_paths:
                 bg_img = cv_utils.read_cv2_img(bg_path)
                 bg_img = cv_utils.normalize_img(bg_img, image_size=self._opt.image_size, transpose=True)
@@ -152,6 +161,15 @@ class PersonalizedDataset(VideoDataset):
         return images, smpls, masks, offsets, pseudo_bgs, links_ids
 
     def __getitem__(self, index):
+        """
+
+        Args:
+            index:
+
+        Returns:
+
+        """
+
         # assert (index < self._dataset_size)
 
         # start_time = time.time()

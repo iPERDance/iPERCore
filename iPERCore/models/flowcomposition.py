@@ -166,12 +166,12 @@ class FlowComposition(torch.nn.Module):
                 human_sil = 1 - cond[:, -1:]
 
             # TODO, here ks=3 is hyper-parameter, might need to set it to the configuration.
-            smpl_info["confidant_sil"] = morph(human_sil, ks=3, mode="erode")
+            smpl_info["confidant_sil"] = morph(human_sil, ks=self._opt.conf_erode_ks, mode="erode")
 
             # TODO, here ks=51 is hyper-parameter, might need to set it to the configuration.
             smpl_info["outpad_sil"] = morph(
                 ((human_sil + 1 - cond[:, -1:]) > 0).float(),
-                ks=51, mode="dilate"
+                ks=self._opt.out_dilate_ks, mode="dilate"
             )
             # f2pts = self.make_morph_f2pts(f2pts, fim, smpl_info["human_sil"], erode_ks=0)
 

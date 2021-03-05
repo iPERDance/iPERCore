@@ -437,7 +437,7 @@ def fuse_video_audio_output(video_path, audio_path, out_path):
     subprocess.call(cmd)
 
 
-def video2frames(vid_path, out_dir, ffmpeg_exc_path="ffmpeg"):
+def video2frames(vid_path, out_dir):
     """
     Extracts all frames from the video at vid_path and saves them inside of
     out_dir.

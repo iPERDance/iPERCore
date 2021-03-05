@@ -38,6 +38,9 @@ smpl_model_hand = "./assets/checkpoints/pose3d/smpl_model_with_hand_v2.pkl"
 tex_size = 3
 only_vis = false
 temporal = false
+conf_erode_ks = 3
+out_dilate_ks = 51
+
 map_name = "uv_seg"
 face_path = "./assets/checkpoints/pose3d/smpl_faces.npy"
 fim_enc_path = "./assets/checkpoints/pose3d/mapper_fim_enc.txt"
