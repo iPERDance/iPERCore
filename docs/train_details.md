@@ -81,6 +81,6 @@ python scripts/train/prepare_motionSynthetic_dataset.py \
 ## Train iPER + MotionSynthetic + FashionVideo + Place2
 ```Bash
 
-python 
+python scripts/train/dist_train.py
 
 ```
