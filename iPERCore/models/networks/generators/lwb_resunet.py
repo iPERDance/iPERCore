@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from abc import ABC
 
 from .bg_inpaintor import ResNetInpaintor
 
@@ -58,7 +59,7 @@ class LWB(nn.Module):
         _, _, h, w = x.shape
 
         T_scale = T.permute(0, 3, 1, 2)  # (bs, 2, h, w)
-        T_scale = F.interpolate(T_scale, size=(h, w), mode='bilinear', align_corners=True)
+        T_scale = F.interpolate(T_scale, size=(h, w), mode="bilinear", align_corners=True)
         T_scale = T_scale.permute(0, 2, 3, 1)  # (bs, h, w, 2)
 
         return T_scale
@@ -99,9 +100,56 @@ class AddLWB(nn.Module):
 
         # tsf_x.unsqueeze_(dim=1)
         tsf_x = tsf_x.unsqueeze(dim=1)
+
+        # sum
+        fused_x = torch.sum(torch.cat([tsf_x, warp_x], dim=1), dim=1)
+
+        return fused_x
+
+    def __str__(self):
+        return "AddLWB"
+
+    def __repr__(self):
+        return "AddLWB"
+
+
+class AvgLWB(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.lwb = LWB()
+
+    def forward(self, tsf_x, src_x, Tst):
+        """
+
+        Args:
+            tsf_x  (torch.Tensor): (bs, c, h, w)
+            src_x  (torch.Tensor): (bs * ns, c, h, w)
+            Tst    (torch.Tensor): (bs * ns, h, w, 2)
+
+        Returns:
+            fused_x (torch.Tensor): (bs, c, h, w)
+        """
+
+        bsns, _, _, _ = Tst.shape
+        bs, c, h, w = tsf_x.shape
+        ns = bsns // bs
+
+        warp_x = self.lwb(src_x, Tst).view(bs, ns, -1, h, w)
+
+        # tsf_x.unsqueeze_(dim=1)
+        tsf_x = tsf_x.unsqueeze(dim=1)
+
+        # mean
         fused_x = torch.mean(torch.cat([tsf_x, warp_x], dim=1), dim=1)
 
         return fused_x
+
+    def __str__(self):
+        return "AvgLWB"
+
+    def __repr__(self):
+        return "AvgLWB"
 
 
 class Encoder(nn.Module):
@@ -212,7 +260,7 @@ class SkipDecoder(nn.Module):
 class ResAutoEncoder(nn.Module):
     def __init__(self, in_channel=6, num_filters=(64, 128, 128, 128), n_res_block=4):
         super(ResAutoEncoder, self).__init__()
-        self._name = 'ResAutoEncoder'
+        self._name = "ResAutoEncoder"
 
         # build encoders
         self.encoders = Encoder(in_channel=in_channel, num_filters=num_filters)
@@ -264,23 +312,39 @@ class ResAutoEncoder(nn.Module):
         return res_outs
 
 
-class AddLWBGenerator(nn.Module):
+class BaseLWBGenerator(nn.Module, ABC):
     def __init__(
-        self, bg_dim=4, src_dim=6, tsf_dim=3,
-        num_filters=(64, 128, 256), n_res_block=6,
-        temporal=True
+        self, cfg, temporal=True
     ):
-        super(AddLWBGenerator, self).__init__()
-        self.bg_net = ResNetInpaintor(c_dim=bg_dim, num_filters=(64, 128, 128, 256), n_res_block=n_res_block)
+
+        super(BaseLWBGenerator, self).__init__()
+        self.bg_net = ResNetInpaintor(
+            c_dim=cfg.BGNet.cond_nc,
+            num_filters=cfg.BGNet.num_filters,
+            n_res_block=cfg.BGNet.n_res_block
+        )
 
         # build src_net
-        self.src_net = ResAutoEncoder(in_channel=src_dim, num_filters=num_filters, n_res_block=n_res_block)
+        self.src_net = ResAutoEncoder(
+            in_channel=cfg.SIDNet.cond_nc,
+            num_filters=cfg.SIDNet.num_filters,
+            n_res_block=cfg.SIDNet.n_res_block
+        )
 
         # build tsf_net
+        num_filters = cfg.TSFNet.num_filters
+        n_res_block = cfg.TSFNet.n_res_block
         self.temporal = temporal
-        self.tsf_net_enc = Encoder(in_channel=tsf_dim, num_filters=num_filters, use_bias=False)
-        self.tsf_net_dec = SkipDecoder(num_filters[-1], num_filters, list(reversed(num_filters)))
-        self.add_lwb = AddLWB()
+        self.tsf_net_enc = Encoder(
+            in_channel=cfg.TSFNet.cond_nc,
+            num_filters=num_filters,
+            use_bias=False
+        )
+        self.tsf_net_dec = SkipDecoder(
+            num_filters[-1],
+            num_filters,
+            list(reversed(num_filters))
+        )
 
         res_blocks = []
         for i in range(n_res_block):
@@ -296,6 +360,9 @@ class AddLWBGenerator(nn.Module):
             nn.Conv2d(num_filters[0], 1, kernel_size=5, stride=1, padding=2, bias=False),
             nn.Sigmoid()
         )
+
+        # child class must define self.lwb
+        self.lwb = None
 
     def forward_bg(self, bg_inputs):
         """
@@ -369,7 +436,7 @@ class AddLWBGenerator(nn.Module):
             tsf_x = self.tsf_net_enc.layers[i](tsf_x)
             src_x = src_enc_outs[i]
 
-            tsf_x = self.add_lwb(tsf_x, src_x, Tst)
+            tsf_x = self.lwb(tsf_x, src_x, Tst)
 
             tsf_enc_outs.append(tsf_x)
 
@@ -378,7 +445,7 @@ class AddLWBGenerator(nn.Module):
             tsf_x = self.res_blocks[i](tsf_x)
             src_x = src_res_outs[i]
 
-            tsf_x = self.add_lwb(tsf_x, src_x, Tst)
+            tsf_x = self.lwb(tsf_x, src_x, Tst)
 
         # 3. decoders
         tsf_x = self.tsf_net_dec(tsf_x, tsf_enc_outs)
@@ -446,16 +513,19 @@ class AddLWBGenerator(nn.Module):
             return bg_img, src_imgs, src_masks, tsf_imgs, tsf_masks
 
 
-if __name__ == '__main__':
-    alwb_gen = AddLWBGenerator(temporal=True, num_filters=[64, 128, 256])
+class AddLWBGenerator(BaseLWBGenerator):
+    def __init__(
+        self, cfg, temporal=True
+    ):
+        super(AddLWBGenerator, self).__init__(cfg, temporal)
 
-    bg_inputs = torch.rand(2, 5, 4, 512, 512)
-    src_inputs = torch.rand(2, 5, 6, 512, 512)
-    tsf_inputs = torch.rand(2, 2, 3, 512, 512)
-    Tst = torch.rand(2, 2, 5, 512, 512, 2)
-    Ttt = torch.rand(2, 1, 512, 512, 2)
+        self.lwb = AddLWB()
 
-    bg_img, src_img, src_mask, tsf_img, tsf_mask = alwb_gen(bg_inputs, src_inputs, tsf_inputs, Tst, Ttt, only_tsf=False)
 
-    print(bg_img.shape, src_img.shape, src_mask.shape, tsf_img.shape, tsf_mask.shape)
+class AvgLWBGenerator(BaseLWBGenerator):
+    def __init__(
+        self, cfg, temporal=True
+    ):
+        super(AvgLWBGenerator, self).__init__(cfg, temporal)
 
+        self.lwb = AvgLWB()

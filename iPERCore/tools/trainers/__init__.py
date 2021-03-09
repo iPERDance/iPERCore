@@ -16,6 +16,14 @@ def create_trainer(name, *args, **kwargs):
         from .lwg_trainer import LWGFrontTrainer
         trainer = LWGFrontTrainer(*args, **kwargs)
 
+    elif name == "BaselineTrainer":
+        from .baseline_trainer import BaselineTrainer
+        trainer = BaselineTrainer(*args, **kwargs)
+
+    elif name == "BaselineTrainer":
+        from .baseline_trainer import BaselineTrainer
+        trainer = BaselineTrainer(*args, **kwargs)
+
     else:
         raise ValueError("Trainer %s not recognized." % name)
 

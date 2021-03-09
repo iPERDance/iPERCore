@@ -4,30 +4,43 @@
 
 Assume that we put the iPER data into $iPER_root_dir
 
-1. Download the iPER dataset, https://onedrive.live.com/?authkey=%21AJL_NAQMkdXGPlA&id=3705E349C336415F%2188052&cid=3705E349C336415F
-    1.1 download the `iPER_1024_video_release.zip`, and move them into $iPER_root_dir
+1. Download the iPER dataset, https://onedrive.live.com/?authkey=%21AJL%5FNAQMkdXGPlA&id=3705E349C336415F%2188052&cid=3705E349C336415F
+    1.1 download the `images_HD.tar.gz`, and move them into $iPER_root_dir
     1.2 download the `train.txt`, and move them into $iPER_root_dir
     1.3 download the `val.txt`, and move them into $iPER_root_dir
-    1.4 unzip `$iPER_root_dir/iPER_1024_video_release.zip` into $iPER_root_dir
+    1.4 tar -xzvf `$iPER_root_dir/images_HD.tar.gz` into $iPER_root_dir
 
    The file structure of $iPER_root_dir will be:
 
    $iPER_root_dir:
-        --iPER_1024_video_release.zip
-        --iPER_1024_video_release
-            --001_1_1.mp4
-            --001_1_2.mp4
-            --001_2_1.mp4
-            ...
-            --030_1_2.mp4
-        --train.txt
-        --val.txt
+        |-- images_HD
+        |   |-- 001
+        |   |   |-- 1
+        |   |   |   |-- 1
+        |   |   |   `-- 2
+        |   |   |-- 10
+        |   |   |   |-- 1
+        |   |   |   `-- 2
+        |   |-- 002
+        |   |   `-- 1
+        |   |       |-- 1
+        |   |       `-- 2
+        |   |-- 003
+        |   |   `-- 1
+        |   |       |-- 1
+        |   |       `-- 2
+        |   |-- 011
+        |   |   `-- 1
+        |   |       |-- 1
+        |   |       `-- 2
+        |-- images_HD.tar.gz
+        |-- train.txt
+        |-- val.txt
 
-2. Preprocess all videos in $iPER_root_dir/iPER_1024_video_release.
+2. Preprocess all videos/frame sequences in $iPER_root_dir/images_HD.
 
 
-3. Reorganize the processed data for evaluations, https://github.com/iPERDance/his_evaluators
-
+3. # TODO, Reorganize the processed data for evaluations
 
 """
 

@@ -315,21 +315,35 @@ def build_res_block_softgatelwb(src_res_channel, tsf_res_channel, n_res_block, f
 
 
 class SoftGateLWBGenerator(nn.Module):
-    def __init__(
-        self, bg_dim=4, src_dim=6, tsf_dim=3,
-        num_filters=(64, 128, 256), n_res_block=6,
-        temporal=True, fuse_type="add"
-    ):
+    def __init__(self, cfg, temporal=True, fuse_type="add"):
         super(SoftGateLWBGenerator, self).__init__()
-        self.bg_net = ResNetInpaintor(c_dim=bg_dim, num_filters=(64, 128, 128, 256), n_res_block=n_res_block)
+        self.bg_net = ResNetInpaintor(
+            c_dim=cfg.BGNet.cond_nc,
+            num_filters=cfg.BGNet.num_filters,
+            n_res_block=cfg.BGNet.n_res_block
+        )
 
         # build src_net
-        self.src_net = ResAutoEncoder(in_channel=src_dim, num_filters=num_filters, n_res_block=n_res_block)
+        self.src_net = ResAutoEncoder(
+            in_channel=cfg.SIDNet.cond_nc,
+            num_filters=cfg.SIDNet.num_filters,
+            n_res_block=cfg.SIDNet.n_res_block
+        )
 
         # build tsf_net
+        num_filters = cfg.TSFNet.num_filters
+        n_res_block = cfg.TSFNet.n_res_block
         self.temporal = temporal
-        self.tsf_net_enc = Encoder(in_channel=tsf_dim, num_filters=num_filters, use_bias=False)
-        self.tsf_net_dec = SkipDecoder(num_filters[-1], num_filters, list(reversed(num_filters)))
+        self.tsf_net_enc = Encoder(
+            in_channel=cfg.TSFNet.cond_nc,
+            num_filters=num_filters,
+            use_bias=False
+        )
+        self.tsf_net_dec = SkipDecoder(
+            num_filters[-1],
+            num_filters,
+            list(reversed(num_filters))
+        )
         self.enc_attlwbs = build_multi_stage_softgatelwb(num_filters, num_filters, fuse_type)
         self.res_attlwbs = build_res_block_softgatelwb(num_filters[-1], num_filters[-1], n_res_block, fuse_type)
         res_blocks = []
@@ -346,22 +360,6 @@ class SoftGateLWBGenerator(nn.Module):
             nn.Conv2d(num_filters[0], 1, kernel_size=5, stride=1, padding=2, bias=False),
             nn.Sigmoid()
         )
-
-    def adaptor_params(self):
-        return list(self.bg_net.parameters()) + \
-               list(self.tsf_net_enc.parameters()) + \
-               list(self.tsf_net_dec.parameters()) + \
-               list(self.res_blocks.parameters()) + \
-               list(self.enc_attlwbs.parameters()) + list(self.res_attlwbs.parameters()) + \
-               list(self.tsf_img_reg.parameters()) + list(self.tsf_att_reg.parameters())
-
-    def adaptor_att_params(self):
-        return list(self.enc_attlwbs.parameters()) + list(self.res_attlwbs.parameters())
-
-    def adaptor_params_for_swapper(self):
-        return list(self.bg_net.parameters()) + \
-               list(self.src_net.att_reg.parameters()) + \
-               list(self.enc_attlwbs.parameters()) + list(self.res_attlwbs.parameters())
 
     def forward_bg(self, bg_inputs):
         """
@@ -522,34 +520,13 @@ class SoftGateLWBGenerator(nn.Module):
 
 
 class SoftGateAddLWBGenerator(SoftGateLWBGenerator):
-    def __init__(self, bg_dim=4, src_dim=6, tsf_dim=3,
-                 num_filters=(64, 128, 256), n_res_block=6,
-                 temporal=True):
+    def __init__(self, cfg, temporal=True):
 
-        super().__init__(bg_dim=bg_dim, src_dim=src_dim, tsf_dim=tsf_dim,
-                         num_filters=num_filters, n_res_block=n_res_block,
-                         temporal=temporal, fuse_type="add")
+        super().__init__(cfg, temporal=temporal, fuse_type="add")
 
 
 class SoftGateAvgLWBGenerator(SoftGateLWBGenerator):
-    def __init__(self, bg_dim=4, src_dim=6, tsf_dim=3,
-                 num_filters=(64, 128, 256), n_res_block=6,
-                 temporal=True):
+    def __init__(self, cfg, temporal=True):
 
-        super().__init__(bg_dim=bg_dim, src_dim=src_dim, tsf_dim=tsf_dim,
-                         num_filters=num_filters, n_res_block=n_res_block,
-                         temporal=temporal, fuse_type="avg")
+        super().__init__(cfg, temporal=temporal, fuse_type="avg")
 
-
-if __name__ == '__main__':
-    alwb_gen = SoftGateAddLWBGenerator(temporal=True, num_filters=[64, 128, 256])
-
-    bg_inputs = torch.rand(2, 5, 4, 512, 512)
-    src_inputs = torch.rand(2, 5, 6, 512, 512)
-    tsf_inputs = torch.rand(2, 2, 3, 512, 512)
-    Tst = torch.rand(2, 2, 5, 512, 512, 2)
-    Ttt = torch.rand(2, 1, 512, 512, 2)
-
-    bg_img, src_img, src_mask, tsf_img, tsf_mask = alwb_gen(bg_inputs, src_inputs, tsf_inputs, Tst, Ttt, only_tsf=False)
-
-    print(bg_img.shape, src_img.shape, src_mask.shape, tsf_img.shape, tsf_mask.shape)

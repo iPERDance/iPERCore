@@ -11,3 +11,4 @@ results
 *venv
 *.pytest
 *debug*
+visuals/

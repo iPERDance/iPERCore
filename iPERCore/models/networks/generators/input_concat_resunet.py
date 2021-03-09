@@ -1,14 +1,12 @@
-# Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
-
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from .bg_inpaintor import ResNetInpaintor
 
 
 class ResidualBlock(nn.Module):
     """Residual Block."""
+
     def __init__(self, in_channel, out_channel):
         super(ResidualBlock, self).__init__()
         self.main = nn.Sequential(
@@ -19,89 +17,6 @@ class ResidualBlock(nn.Module):
 
     def forward(self, x):
         return x + self.main(x)
-
-
-class LWB(nn.Module):
-    def __init__(self):
-        super(LWB, self).__init__()
-
-    def forward(self, X, T):
-        """
-        Args:
-            X (torch.tensor): (N, C, H, W) or (N, nt, C, H, W) or (N, ns, C, H, W)
-            T (torch.tensor): (N, h, w, 2) or (N, nt, h, w, 2) or (N, nt, ns, h, w, 2)
-
-        Returns:
-            x_warp (torch.tensor): (N, C, H ,W)
-        """
-        x_shape = X.shape
-        T_shape = T.shape
-        x_n_dim = len(x_shape)
-        T_n_dim = len(T_shape)
-
-        assert x_n_dim >= 4 and T_n_dim >= 4
-
-        if x_n_dim == 4 and T_n_dim == 4:
-            warp = self.transform(X, T)
-
-        elif x_n_dim == 5 and T_n_dim == 5:
-            bs, nt, C, H, W = x_shape
-            h, w = T_shape[2:4]
-            warp = self.transform(X.view(bs * nt, C, H, W), T.view(bs * nt, h, w, 2))
-
-        else:
-            raise ValueError("#dim of X must >= 4 and #dim of T must >= 4")
-
-        return warp
-
-    def resize_trans(self, x, T):
-        _, _, h, w = x.shape
-
-        T_scale = T.permute(0, 3, 1, 2)  # (bs, 2, h, w)
-        T_scale = F.interpolate(T_scale, size=(h, w), mode='bilinear', align_corners=True)
-        T_scale = T_scale.permute(0, 2, 3, 1)  # (bs, h, w, 2)
-
-        return T_scale
-
-    def transform(self, x, T):
-        bs, c, h_x, w_x = x.shape
-        bs, h_t, w_t, _ = T.shape
-
-        if h_t != h_x or w_t != w_x:
-            T = self.resize_trans(x, T)
-        x_trans = F.grid_sample(x, T)
-        return x_trans
-
-
-class AddLWB(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-        self.lwb = LWB()
-
-    def forward(self, tsf_x, src_x, Tst):
-        """
-
-        Args:
-            tsf_x  (torch.Tensor): (bs, c, h, w)
-            src_x  (torch.Tensor): (bs * ns, c, h, w)
-            Tst    (torch.Tensor): (bs * ns, h, w, 2)
-
-        Returns:
-            fused_x (torch.Tensor): (bs, c, h, w)
-        """
-
-        bsns, _, _, _ = Tst.shape
-        bs, c, h, w = tsf_x.shape
-        ns = bsns // bs
-
-        warp_x = self.lwb(src_x, Tst).view(bs, ns, -1, h, w)
-
-        # tsf_x.unsqueeze_(dim=1)
-        tsf_x = tsf_x.unsqueeze(dim=1)
-        fused_x = torch.sum(torch.cat([tsf_x, warp_x], dim=1), dim=1)
-
-        return fused_x
 
 
 class Encoder(nn.Module):
@@ -264,38 +179,22 @@ class ResAutoEncoder(nn.Module):
         return res_outs
 
 
-class AddLWBGenerator(nn.Module):
-    def __init__(
-        self, bg_dim=4, src_dim=6, tsf_dim=3,
-        num_filters=(64, 128, 256), n_res_block=6,
-        temporal=True
-    ):
-        super(AddLWBGenerator, self).__init__()
-        self.bg_net = ResNetInpaintor(c_dim=bg_dim, num_filters=(64, 128, 128, 256), n_res_block=n_res_block)
+class InputConcatGenerator(nn.Module):
+    def __init__(self, cfg, temporal=False):
+        super(InputConcatGenerator, self).__init__()
 
-        # build src_net
-        self.src_net = ResAutoEncoder(in_channel=src_dim, num_filters=num_filters, n_res_block=n_res_block)
-
-        # build tsf_net
-        self.temporal = temporal
-        self.tsf_net_enc = Encoder(in_channel=tsf_dim, num_filters=num_filters, use_bias=False)
-        self.tsf_net_dec = SkipDecoder(num_filters[-1], num_filters, list(reversed(num_filters)))
-        self.add_lwb = AddLWB()
-
-        res_blocks = []
-        for i in range(n_res_block):
-            res_blocks.append(ResidualBlock(num_filters[-1], num_filters[-1]))
-        self.res_blocks = nn.Sequential(*res_blocks)
-
-        self.tsf_img_reg = nn.Sequential(
-            nn.Conv2d(num_filters[0], 3, kernel_size=5, stride=1, padding=2, bias=False),
-            nn.Tanh()
+        self.bg_net = ResNetInpaintor(
+            c_dim=cfg.BGNet.cond_nc,
+            num_filters=cfg.BGNet.num_filters,
+            n_res_block=cfg.BGNet.n_res_block
+        )
+        self.tsf_net = ResAutoEncoder(
+            in_channel=cfg.TSFNet.cond_nc,
+            num_filters=cfg.TSFNet.num_filters,
+            n_res_block=cfg.TSFNet.n_res_block
         )
 
-        self.tsf_att_reg = nn.Sequential(
-            nn.Conv2d(num_filters[0], 1, kernel_size=5, stride=1, padding=2, bias=False),
-            nn.Sigmoid()
-        )
+        self.num_source = cfg.TSFNet.num_source
 
     def forward_bg(self, bg_inputs):
         """
@@ -327,29 +226,39 @@ class AddLWBGenerator(nn.Module):
             mask (torch.tensor): if `only_enc == True`, return the predicted mask map (bs, ns, 3, h, w)
         """
         bs, ns, _, h, w = src_inputs.shape
-        src_enc_outs = self.src_net.encode(src_inputs.view(bs * ns, -1, h, w))
-        src_res_outs = self.src_net.res_out(src_enc_outs[-1])
+        need_ns = self.num_source
+
+        if ns > need_ns:
+            src_inputs = src_inputs[:, 0:need_ns]
+        else:
+            need_pad_ns = need_ns - ns
+
+            pad_src_inputs = []
+            for s in range(need_pad_ns):
+                pad_src_inputs.append(src_inputs[:, s % ns])
+
+            pad_src_inputs = torch.stack(pad_src_inputs, dim=1)
+            src_inputs = torch.cat([src_inputs, pad_src_inputs], dim=1)
+
+        src_enc_outs = src_inputs.view(bs, -1, h, w)
 
         if only_enc:
-            return src_enc_outs, src_res_outs
+            return src_enc_outs, src_enc_outs
         else:
-            img, mask = self.src_net.regress(self.src_net.decode(src_res_outs[-1]))
-            img = img.view(bs, ns, 3, h, w)
-            mask = mask.view(bs, ns, 1, h, w)
+            return src_enc_outs, src_enc_outs, None, None
 
-            return src_enc_outs, src_res_outs, img, mask
-
-    def forward_tsf(self, tsf_inputs, src_enc_outs, src_res_outs, Tst,
+    def forward_tsf(self, tsf_inputs, src_enc_outs, src_res_outs=None, Tst=None,
                     temp_enc_outs=None, temp_res_outs=None, Ttt=None):
         """
             Processing one time step of tsf stream.
 
         Args:
             tsf_inputs (torch.tensor): (bs, 6, h, w)
-            src_enc_outs (list of torch.tensor): [(bs*ns, c1, h1, w1), (bs*ns, c2, h2, w2),..]
-            src_res_outs (list of torch.tensor): [(bs*ns, c1, h1, w1), (bs*ns, c2, h2, w2),..]
+            src_enc_outs (torch.tensor): (bs, c, h, wc)
+            src_res_outs (None): None
             Tst (torch.tensor): (bs, ns, h, w, 2), flow transformation from source images/features
             temp_enc_outs (list of torch.tensor): [(bs*nt, c1, h1, w1), (bs*nt, c2, h2, w2),..]
+            temp_res_outs (list of torch.tensor): [(bs*nt, c1, h1, w1), (bs*nt, c2, h2, w2),..]
             Ttt (torch.tensor): (bs, nt, h, w, 2), flow transformation from previous images/features (temporal smooth)
 
         Returns:
@@ -357,36 +266,15 @@ class AddLWBGenerator(nn.Module):
             tsf_img (torch.tensor):  (bs, 3, h, w)
             tsf_mask (torch.tensor): (bs, 1, h, w)
         """
-        bs, ns, h, w, _ = Tst.shape
 
-        n_down = self.tsf_net_enc.n_down
+        tsf_cond = tsf_inputs[:, -3:]
+        inputs = torch.cat([src_enc_outs, tsf_cond], dim=1)
 
-        # 1. encoders
-        tsf_enc_outs = []
-        tsf_x = tsf_inputs
-        Tst = Tst.view((bs * ns, h, w, 2))
-        for i in range(n_down):
-            tsf_x = self.tsf_net_enc.layers[i](tsf_x)
-            src_x = src_enc_outs[i]
-
-            tsf_x = self.add_lwb(tsf_x, src_x, Tst)
-
-            tsf_enc_outs.append(tsf_x)
-
-        # 2. res-blocks
-        for i in range(len(self.res_blocks)):
-            tsf_x = self.res_blocks[i](tsf_x)
-            src_x = src_res_outs[i]
-
-            tsf_x = self.add_lwb(tsf_x, src_x, Tst)
-
-        # 3. decoders
-        tsf_x = self.tsf_net_dec(tsf_x, tsf_enc_outs)
-        tsf_img, tsf_mask = self.tsf_img_reg(tsf_x), self.tsf_att_reg(tsf_x)
+        tsf_img, tsf_mask = self.tsf_net.forward(inputs)
 
         return tsf_img, tsf_mask
 
-    def forward(self, bg_inputs, src_inputs, tsf_inputs, Tst, Ttt=None, only_tsf=True):
+    def forward(self, bg_inputs, src_inputs, tsf_inputs, Tst=None, Ttt=None, only_tsf=True):
         """
 
         Args:
@@ -401,61 +289,25 @@ class AddLWBGenerator(nn.Module):
             bg_img (torch.tensor): the inpainted bg images, (bs, ns or 1, 3, h, w)
         """
 
-        # print(src_inputs.shape, Tst.shape, Ttt.shape)
-        bs, nt, ns, h, w, _ = Tst.shape
-
         # 1. inpaint background
-        bg_img = self.forward_bg(bg_inputs)    # (N, ns or 1, 3, h, w)
+        bg_img = self.forward_bg(bg_inputs)  # (N, ns or 1, 3, h, w)
 
-        # 2. process source inputs
-        # src_enc_outs: [torch.tensor(bs*ns, c1, h1, w1), tensor.tensor(bs*ns, c2, h2, w2), ... ]
-        # src_img: the predicted image map (bs, ns, 3, h, w)
-        # src_mask: the predicted mask map (bs, ns, 3, h, w)
+        src_enc_outs, _ = self.forward_src(src_inputs, only_enc=True)
 
-        if only_tsf:
-            src_enc_outs, src_res_outs = self.forward_src(src_inputs, only_enc=True)
-            src_imgs, src_masks = None, None
-        else:
-            src_enc_outs, src_res_outs, src_imgs, src_masks = self.forward_src(src_inputs, only_enc=False)
-
-        # 3. process transform inputs
+        bs, nt = tsf_inputs.shape[0:2]
         tsf_imgs, tsf_masks = [], []
         for t in range(nt):
-            t_tsf_inputs = tsf_inputs[:, t]
-
-            if t != 0 and self.temporal:
-                _tsf_cond = tsf_inputs[:, t - 1, 0:3]
-                _tsf_img = tsf_imgs[-1] * (1 - tsf_masks[-1])
-                _tsf_inputs = torch.cat([_tsf_img, _tsf_cond], dim=1).unsqueeze_(dim=1)
-                _temp_enc_outs, _temp_res_outs = self.forward_src(_tsf_inputs, only_enc=True)
-                _Ttt = Ttt[:, t-1:t]
-            else:
-                _Ttt = None
-                _temp_enc_outs, _temp_res_outs = None, None
-            tsf_img, tsf_mask = self.forward_tsf(t_tsf_inputs, src_enc_outs, src_res_outs,
-                                                 Tst[:, t].contiguous(), _temp_enc_outs, _temp_res_outs, _Ttt)
+            tsf_img, tsf_mask = self.forward_tsf(tsf_inputs[:, t], src_enc_outs)
             tsf_imgs.append(tsf_img)
             tsf_masks.append(tsf_mask)
 
         tsf_imgs = torch.stack(tsf_imgs, dim=1)
         tsf_masks = torch.stack(tsf_masks, dim=1)
 
-        if only_tsf:
-            return bg_img, tsf_imgs, tsf_masks
-        else:
-            return bg_img, src_imgs, src_masks, tsf_imgs, tsf_masks
+        return bg_img, tsf_imgs, tsf_masks
 
 
-if __name__ == '__main__':
-    alwb_gen = AddLWBGenerator(temporal=True, num_filters=[64, 128, 256])
-
-    bg_inputs = torch.rand(2, 5, 4, 512, 512)
-    src_inputs = torch.rand(2, 5, 6, 512, 512)
-    tsf_inputs = torch.rand(2, 2, 3, 512, 512)
-    Tst = torch.rand(2, 2, 5, 512, 512, 2)
-    Ttt = torch.rand(2, 1, 512, 512, 2)
-
-    bg_img, src_img, src_mask, tsf_img, tsf_mask = alwb_gen(bg_inputs, src_inputs, tsf_inputs, Tst, Ttt, only_tsf=False)
-
-    print(bg_img.shape, src_img.shape, src_mask.shape, tsf_img.shape, tsf_mask.shape)
+class TextureWarpingGenerator(InputConcatGenerator):
+    def __init__(self, cfg, temporal=False):
+        super().__init__(cfg, temporal)
 

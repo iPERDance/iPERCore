@@ -11,7 +11,7 @@ from iPERCore.tools.utils.filesio.cv_utils import tensor2im
 
 from .base import BaseTrainerModel, FlowCompositionForTrainer
 
-__all__ = ["LWGTrainer", "LWGAugBGTrainer", "LWGFrontTrainer"]
+__all__ = ["LWGTrainerABC", "LWGTrainer", "LWGAugBGTrainer", "LWGFrontTrainer"]
 
 
 class LWGTrainerABC(BaseTrainerModel, abc.ABC):
@@ -242,17 +242,17 @@ class LWGTrainerABC(BaseTrainerModel, abc.ABC):
         visuals["0_source"] = self._vis_source
         visuals["1_uv_img"] = self._vis_uv_img
         visuals["2_real_img"] = self._vis_real
-        visuals["4_fake_src"] = self._vis_fake_src
-        visuals["5_fake_tsf"] = self._vis_fake_tsf
-        visuals["6_fake_bg"] = self._vis_fake_bg
-        visuals["7_fake_mask"] = self._vis_mask
-        visuals["8_body_mask"] = self._vis_body_mask
+        visuals["3_fake_src"] = self._vis_fake_src
+        visuals["4_fake_tsf"] = self._vis_fake_tsf
+        visuals["5_fake_bg"] = self._vis_fake_bg
+        visuals["6_fake_mask"] = self._vis_mask
+        visuals["7_body_mask"] = self._vis_body_mask
 
-        # visuals["9_warp_img"] = self._vis_warp
-        # visuals["10_src_warp"] = self._vis_src_warp
-        # visuals["11_src_ft"] = self._vis_src_ft
+        # visuals["8_warp_img"] = self._vis_warp
+        # visuals["9_src_warp"] = self._vis_src_warp
+        # visuals["10_src_ft"] = self._vis_src_ft
         # if self._opt.temporal:
-        #     visuals["12_temp_warp"] = self._vis_temp_warp
+        #     visuals["11_temp_warp"] = self._vis_temp_warp
 
         return visuals
 

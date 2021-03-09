@@ -39,7 +39,8 @@ tex_size = 3
 only_vis = false
 temporal = false
 conf_erode_ks = 3
-out_dilate_ks = 51
+out_dilate_ks = 51    # decrease this might need less GPU Memory size.
+#out_dilate_ks = 9    # In the training set set this as a small value.
 
 map_name = "uv_seg"
 face_path = "./assets/checkpoints/pose3d/smpl_faces.npy"

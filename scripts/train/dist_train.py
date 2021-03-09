@@ -70,22 +70,41 @@ import sys
 
 
 ##################################### args for training #######################################
-gpu_ids = "0,1,2,3"
-# gpu_ids = "0"
+gpu_ids = "0,1,2,3"             # distributed multi-GPUs
+# gpu_ids = "0"                 # single GPU
 distributed_port = "10086"
-cfg_path = "./assets/configs/train_aug_bg.toml"
+cfg_path = "./assets/configs/trainers/train_aug_bg.toml"
 output_dir = "/p300/tpami/checkpoints"
-dataset_mode = "ProcessedVideo+Place2"
 
-# model_id = "MS+Place2"
-# dataset_dirs = ["/p300/tpami/datasets/motionSynthetic"]
-
+# Use iPER + MotionSynthetic + FashionVideo + Place2 datasets
 model_id = "iPER+MS+FashionVideo+Place2"
 dataset_dirs = ["/p300/tpami/datasets/fashionvideo",
                 "/p300/tpami/datasets/iPER",
-                "/p300/tpami/datasets/motionSynthetic"]
+                "/p300/tpami/datasets/motionSynthetic"]       ## replace this with your path
+background_dir = "/p300/tpami/places"                         ## replace this with your path
+dataset_mode = "ProcessedVideo+Place2"
 
-background_dir = "/p300/tpami/places"
+## Use iPER + Place2 datasets
+# model_id = "iPER+Place2"
+# dataset_dirs = ["/p300/tpami/datasets/iPER"]                  ## replace this with your path
+# dataset_mode = "ProcessedVideo+Place2"                        ## replace this with your path
+
+## Use iPER + Place2 datasets
+# model_id = "iPER+Place2"
+# dataset_dirs = ["/p300/tpami/datasets/iPER"]                  ## replace this with your path
+# dataset_mode = "ProcessedVideo+Place2"                        ## replace this with your path
+
+## Use MotionSynthetic + Place2 datasets
+# model_id = "MS+Place2"
+# dataset_dirs = ["/p300/tpami/datasets/motionSynthetic"]       ## replace this with your path
+# background_dir = "/p300/tpami/places"                         ## replace this with your path
+# dataset_mode = "ProcessedVideo+Place2"
+
+## Use iPER dataset
+# model_id = "iPER"
+# dataset_dirs = ["/p300/tpami/datasets/iPER",                  ## replace this with your path
+#                 "/p300/tpami/datasets/motionSynthetic"]       ## replace this with your path
+# dataset_mode = "ProcessedVideo"
 
 image_size = 512
 num_source = 4

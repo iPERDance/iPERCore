@@ -7,6 +7,7 @@ import argparse
 import subprocess
 import sys
 import time
+import ipdb
 
 from iPERCore.services.options.options_setup import setup
 from iPERCore.services.run_imitator import run_imitator
@@ -99,7 +100,8 @@ ref_path_format = """the reference input information. All reference paths. It su
 """
 parser.add_argument("--ref_path", type=str, default="", help=ref_path_format)
 
-args = parser.parse_args()
+# args = parser.parse_args()
+args, extra_args = parser.parse_known_args()
 
 # symlink from the actual assets directory to this current directory
 work_asserts_dir = os.path.join("./assets")
@@ -111,20 +113,22 @@ args.cfg_path = osp.join(work_asserts_dir, "configs", "deploy.toml")
 
 
 if __name__ == "__main__":
-    # run imitator
-    cfg = setup(args)
-    run_imitator(cfg)
+    # # run imitator
+    # cfg = setup(args)
+    # run_imitator(cfg)
 
-# # or use the system call wrapper
-# cmd = [
-#     sys.executable, "-m", "iPERCore.services.run_imitator",
-#     "--gpu_ids", args.gpu_ids,
-#     "--image_size", str(args.image_size),
-#     "--num_source", str(args.num_source),
-#     "--output_dir", args.output_dir,
-#     "--model_id", args.model_id,
-#     "--src_path", args.src_path,
-#     "--ref_path", args.ref_path
-# ]
-#
-# subprocess.call(cmd)
+    # or use the system call wrapper
+    cmd = [
+        sys.executable, "-m", "iPERCore.services.run_imitator",
+        "--cfg_path", args.cfg_path,
+        "--gpu_ids", args.gpu_ids,
+        "--image_size", str(args.image_size),
+        "--num_source", str(args.num_source),
+        "--output_dir", args.output_dir,
+        "--model_id", args.model_id,
+        "--src_path", args.src_path,
+        "--ref_path", args.ref_path
+    ]
+
+    cmd += extra_args
+    subprocess.call(cmd)
