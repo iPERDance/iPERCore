@@ -73,7 +73,7 @@ sh assets/download.sh
 ```
 
 Or manually download the checkpoints and samples (option).
-- checkpoints.zip: https://download.impersonator.org/iper_plus_plus_latest_checkpoints.zip
+- checkpoints.zip: https://drive.google.com/file/d/16vJtNNrIQS18rqT0svTTqE3PCqG03rFY/view?usp=sharing
 - samples.zip: https://download.impersonator.org/iper_plus_plus_latest_samples.zip
 
 Unzip all of them, and move them to the `./assets` directory.
