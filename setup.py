@@ -96,20 +96,35 @@ def get_cuda_version() -> float:
     assert "CUDA_HOME" in os.environ, r"Cannot find the $CUDA_HOME in the environments. Please manually install the " \
                                       r"CUDA >= 10.1, and set the $CUDA_HOME environment variable."
 
-    # e.g. "CUDA Version 10.1.243", "CUDA Version 10.0.130"
     cuda_version_file = os.path.join(os.environ["CUDA_HOME"], "version.txt")
 
-    if not os.path.exists(cuda_version_file):
-        raise FileNotFoundError(f"Cannot read cuda version file {cuda_version_file}")
+    if os.path.exists(cuda_version_file):
+        # e.g. "CUDA Version 10.1.243", "CUDA Version 10.0.130"
+        with open(cuda_version_file) as f:
+            version_str = f.readline().replace("\n", "").replace("\r", "")
 
-    with open(cuda_version_file) as f:
-        version_str = f.readline().replace("\n", "").replace("\r", "")
+        # "CUDA Version 10.1.243" -> ["CUDA", "Version", "10.1.243"] -> "10.1.243"
+        version = version_str.split(" ")[2]
 
-    # "CUDA Version 10.1.243" -> ["CUDA", "Version", "10.1.243"] -> "10.1.243"
-    version = version_str.split(" ")[2]
+        # "10.1.243" -> "10.1" -> 10.1
+        version = float(".".join(version.split(".")[0:2]))
 
-    # "10.1.243" -> "10.1" -> 10.1
-    version = float(".".join(version.split(".")[0:2]))
+    else:
+        # run `nvcc -V`
+        # """nvcc: NVIDIA (R) Cuda compiler driver
+        #    Copyright (c) 2005-2019 NVIDIA Corporation
+        #    Built on Sun_Jul_28_19:07:16_PDT_2019
+        #    Cuda compilation tools, release 10.1, V10.1.243
+        # """
+
+        nvcc_out = subprocess.run("nvcc -V", shell=True, stdout=subprocess.PIPE)
+        nvcc_str = nvcc_out.stdout.decode("utf-8")
+        nvcc_cuda = re.findall(r"[.]*([\d]+.[\d]+),[.]*", nvcc_str)
+
+        if len(nvcc_cuda) == 0:
+            raise RuntimeError(f"nvcc -V error! {nvcc_str}")
+        else:
+            version = nvcc_cuda[0]
 
     assert version >= 10.1, f"CUDA Version {version} <= 10.1. Please manually install the CUDA >= 10.1"
 

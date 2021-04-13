@@ -1,8 +1,8 @@
 # Installation
 
 ## System Dependencies
- - Linux (test on Ubuntu 16.04 and 18.04) or Windows (test on windows 10)
- - CUDA 10.1, 10.2, 11.0, or 11.1 with Nvidia GPU.
+ - Linux (test on Ubuntu 16.04 and 18.04) or Windows (test on windows 10).
+ - CUDA 10.1, 10.2, 11.0, or 11.1 with Nvidia GPU. Set the path of $CUDA_HOME, and add the $CUDA_HOME/bin into the system path. 
  - gcc in Linux (supports C++14 and tests on 7.5+ ) or MSVC++ (Visual Studio 2019, supports C++14) in Windows.
  - ffmpeg (ffprobe) test on 4.3.1+.
  - Git test on 2.16.2+
@@ -14,6 +14,8 @@
  For example,
      ```shell
      export CUDA_HOME=/usr/local/cuda-10.1
+     export PATH=${CUDA_HOME}/bin:$PATH
+     export LD_LIBRARY_PATH=${CUDA_HOME}/lib64:$LD_LIBRARY_PATH 
      ```
    
  - Make sure that the gcc support C++14. Since in the next setup stage, it needs to compile some c++ codes from sources.
