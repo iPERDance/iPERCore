@@ -29,14 +29,13 @@ Assume that we put the iPER data into $FashionVideo_root_dir
 
 
 """
-
+import sys
 import os
 import subprocess
 import argparse
-import glob
 from tqdm import tqdm
 import requests
-import warnings
+from urllib.request import urlopen
 
 from iPERCore.services.options.options_setup import setup
 from iPERCore.services.options.process_info import ProcessInfo
@@ -66,20 +65,74 @@ TRAIN_URL = "https://vision.cs.ubc.ca/datasets/fashion/resources/fashion_dataset
 TEST_URL = "https://vision.cs.ubc.ca/datasets/fashion/resources/fashion_dataset/fashion_test.txt"
 
 
+def raise_error(msg):
+    instruction_url = "https://vision.cs.ubc.ca/datasets/fashion/resources/fashion_dataset"
+    print(f"{msg} Please manually download all stuffs follow the instruction in {instruction_url}")
+    sys.exit(0)
+
+
+def download_from_url_to_file(url, file_path):
+    print(f"Download {url}")
+
+    r = requests.get(url, stream=True)
+    with open(file_path, "wb") as f:
+        f.write(r.content)
+
+    success = (r.status_code == 200)
+
+    return success
+
+
+def download_from_url(url, dst):
+    """
+
+    Args:
+        url (str):  url to download file
+        dst (str):  dst place to put the file
+
+    Returns:
+
+    """
+    file_size = int(urlopen(url).info().get("Content-Length", -1))
+
+    if os.path.exists(dst):
+        first_byte = os.path.getsize(dst)
+    else:
+        first_byte = 0
+    if first_byte >= file_size:
+        return True
+    header = {"Range": "bytes=%s-%s" % (first_byte, file_size)}
+    pbar = tqdm(
+        total=file_size, initial=first_byte,
+        unit="B", unit_scale=True, desc=url.split("/")[-1])
+    req = requests.get(url, headers=header, stream=True)
+
+    content_size = first_byte
+    with(open(dst, "ab")) as f:
+        for chunk in req.iter_content(chunk_size=1024):
+            if len(chunk) != 1024:
+                print(len(chunk))
+
+            content_size += len(chunk)
+            if chunk:
+                f.write(chunk)
+                pbar.update(1024)
+    pbar.close()
+
+    print(content_size, file_size)
+    return content_size >= file_size
+
+
 def download_train_test_url_txt():
     global FashionVideo_root_dir, FashionVideo_train_url_txt, FashionVideo_test_url_txt, TRAIN_URL, TEST_URL
 
-    r = requests.get(TRAIN_URL)
-    with open(FashionVideo_train_url_txt, "wb") as f:
-        f.write(r.content)
+    success = download_from_url_to_file(TRAIN_URL, FashionVideo_train_url_txt)
+    if not success or not os.path.exists(FashionVideo_train_url_txt):
+        raise_error(f"Download {TRAIN_URL} failed.")
 
-    print(f"1.1 download {TRAIN_URL} to {FashionVideo_train_url_txt}")
-
-    r = requests.get(TEST_URL)
-    with open(FashionVideo_test_url_txt, "wb") as f:
-        f.write(r.content)
-
-    print(f"1.2 download {TEST_URL} to {FashionVideo_test_url_txt}")
+    success = download_from_url_to_file(TEST_URL, FashionVideo_test_url_txt)
+    if not success or not os.path.exists(FashionVideo_test_url_txt):
+        raise_error(f"Download {TEST_URL} failed.")
 
 
 def crawl_videos(url_txt_file):
@@ -97,18 +150,19 @@ def crawl_videos(url_txt_file):
     with open(url_txt_file, "r") as reader:
 
         # TODO, convert this to multi-thread or multi-process?
-        for vid_url in tqdm(reader):
+        for vid_url in tqdm(reader.readlines()):
             vid_url = vid_url.rstrip()
             file_name = os.path.split(vid_url)[-1]
 
             video_path = os.path.join(FashionVideo_video_dir, file_name)
-            if not os.path.exists(video_path):
-                r = requests.get(vid_url)
-                with open(video_path, "wb") as f:
-                    f.write(r.content)
 
-            print(f"crawl {vid_url}")
-            video_urls.append(vid_url)
+            success = download_from_url(vid_url, video_path)
+
+            if success and os.path.exists(video_path):
+                print(f"crawl {vid_url}")
+                video_urls.append(vid_url)
+            else:
+                raise_error(f"crawl {vid_url} failed.")
 
     return video_urls
 
@@ -146,12 +200,6 @@ def prepare_src_path():
 
     src_paths = []
     for vid_name in os.listdir(FashionVideo_video_dir):
-
-        # if vid_name != "A19FRhRmb-S.mp4":
-        # if vid_name != "91+uwOT1POS.mp4":
-        if vid_name != "A1wwPTTzVGS.mp4":
-            continue
-
         vid_path = os.path.join(FashionVideo_video_dir, vid_name)
         assert os.path.exists(vid_path)
 
@@ -240,11 +288,11 @@ def process_data():
 
 
 def reorganize():
-    # TODO
+    # TODO, support evaluations
     pass
 
 
 if __name__ == "__main__":
     download()
     process_data()
-    # reorganize()
+    reorganize()

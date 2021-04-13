@@ -7,7 +7,7 @@ This script is the wrapper to the actual training script `iPERCore/services/trai
 usage: iPERCore/services/train.py [-h] [--cfg_path CFG_PATH] [--verbose]
                 [--num_source NUM_SOURCE] [--image_size IMAGE_SIZE]
                 [--batch_size BATCH_SIZE] [--time_step TIME_STEP]
-                [--intervals INTERVALS] [--load_epoch LOAD_EPOCH]
+                [--intervals INTERVALS] [--load_iter LOAD_EPOCH]
                 [--bg_ks BG_KS] [--ft_ks FT_KS] [--only_vis] [--temporal]
                 [--use_inpaintor] [--gpu_ids GPU_IDS] [--use_cudnn]
                 [--output_dir OUTPUT_DIR] [--model_id MODEL_ID]
@@ -30,7 +30,7 @@ optional arguments:
                         time step size (default: 1)
   --intervals INTERVALS
                         the interval between frames. (default: 1)
-  --load_epoch LOAD_EPOCH
+  --load_iter LOAD_EPOCH
                         which epoch to load? set to -1 to use latest cached
                         model (default: -1)
   --bg_ks BG_KS         dilate kernel size of background mask. (default: 11)
@@ -52,7 +52,8 @@ optional arguments:
                         saved in output_dir/models/model_id. (default:
                         default)
   --dataset_mode DATASET_MODE
-                        chooses dataset to be used (default: ProcessedVideo)
+                        chooses dataset to be used (default: ProcessedVideo),
+                        choice: ['ProcessedVideo', 'ProcessedVideo+Place2']
   --dataset_dirs [DATASET_DIRS [DATASET_DIRS ...]]
                         the directory of all processed datasets. (default:
                         ['/p300/tpami/datasets/fashionvideo',
@@ -67,77 +68,43 @@ optional arguments:
 import subprocess
 import os
 import sys
+import argparse
 
 
-##################################### args for training #######################################
-gpu_ids = "0,1,2,3"             # distributed multi-GPUs
-# gpu_ids = "0"                 # single GPU
-distributed_port = "10086"
-cfg_path = "./assets/configs/trainers/train_aug_bg.toml"
-output_dir = "/p300/tpami/checkpoints"
+parser = argparse.ArgumentParser()
+parser.add_argument("--gpu_ids", type=str, default="0",
+                    help="the gpu ids, if using distributed multi-GPUs, we can set this as 0,1,2,3,4,5,6,7")
+parser.add_argument("--dataset_dirs", type=str, nargs="*",
+                    default=["/p300/tpami/datasets/fashionvideo", "/p300/tpami/datasets/iPER",
+                             "/p300/tpami/datasets/motionSynthetic"])
+parser.add_argument("--background_dir", type=str, default="/p300/tpami/places")
+parser.add_argument("--dataset_mode", type=str, default="ProcessedVideo+Place2",
+                    choices=["ProcessedVideo", "ProcessedVideo+Place2"])
+parser.add_argument("--cfg_path", type=str, default="./assets/configs/trainers/train_aug_bg.toml",
+                    help="the configuration path.")
+parser.add_argument("--master_port", type=str, default="10086", help="the distributed multi-gpu port.")
 
-# Use iPER + MotionSynthetic + FashionVideo + Place2 datasets
-model_id = "iPER+MS+FashionVideo+Place2"
-dataset_dirs = ["/p300/tpami/datasets/fashionvideo",
-                "/p300/tpami/datasets/iPER",
-                "/p300/tpami/datasets/motionSynthetic"]       ## replace this with your path
-background_dir = "/p300/tpami/places"                         ## replace this with your path
-dataset_mode = "ProcessedVideo+Place2"
 
-## Use iPER + Place2 datasets
-# model_id = "iPER+Place2"
-# dataset_dirs = ["/p300/tpami/datasets/iPER"]                  ## replace this with your path
-# dataset_mode = "ProcessedVideo+Place2"                        ## replace this with your path
-
-## Use iPER + Place2 datasets
-# model_id = "iPER+Place2"
-# dataset_dirs = ["/p300/tpami/datasets/iPER"]                  ## replace this with your path
-# dataset_mode = "ProcessedVideo+Place2"                        ## replace this with your path
-
-## Use MotionSynthetic + Place2 datasets
-# model_id = "MS+Place2"
-# dataset_dirs = ["/p300/tpami/datasets/motionSynthetic"]       ## replace this with your path
-# background_dir = "/p300/tpami/places"                         ## replace this with your path
-# dataset_mode = "ProcessedVideo+Place2"
-
-## Use iPER dataset
-# model_id = "iPER"
-# dataset_dirs = ["/p300/tpami/datasets/iPER",                  ## replace this with your path
-#                 "/p300/tpami/datasets/motionSynthetic"]       ## replace this with your path
-# dataset_mode = "ProcessedVideo"
-
-image_size = 512
-num_source = 4
-time_step = 2
-batch_size = 1
-################################################################################################
+args, extra_args = parser.parse_known_args()
 
 
 ################################### wrapper to call iPERCore/services/train.py #################
-nproc_per_node = len(gpu_ids.split(","))
+nproc_per_node = len(args.gpu_ids.split(","))
 num_cores = os.cpu_count()
 os.environ["OMP_NUM_THREADS"] = str(num_cores // nproc_per_node)
 
 
 cmd = [
-    sys.executable, "-m", "torch.distributed.launch", "--master_port", distributed_port,
+    sys.executable, "-m", "torch.distributed.launch", "--master_port", args.master_port,
     "--nproc_per_node", str(nproc_per_node), "-m", "iPERCore.services.train",
-    "--gpu_ids",        gpu_ids,
-    "--cfg_path",       cfg_path,
-    "--model_id",       model_id,
-    "--output_dir",     output_dir,
-    "--model_id",       model_id,
-    "--dataset_mode",   dataset_mode,
-    "--dataset_dirs",   " ".join(dataset_dirs),
-    "--background_dir", background_dir,
-    "--image_size",     str(image_size),
-    "--num_source",     str(num_source),
-    "--time_step",      str(time_step),
-    "--batch_size",     str(batch_size),
-    "--use_cudnn"
-]
+    "--gpu_ids",        args.gpu_ids,
+    "--dataset_dirs",   *args.dataset_dirs,
+    "--background_dir", args.background_dir,
+    "--dataset_mode",   args.dataset_mode,
+    "--cfg_path",       args.cfg_path
+] + extra_args
 
-subprocess.call(" ".join(cmd), shell=True)
+subprocess.call(cmd)
 
 
 

@@ -5,6 +5,7 @@
  - CUDA 10.1, 10.2, or 11.0 with Nvidia GPU.
  - gcc in Linux (supports C++14 and tests on 7.5+ ) or MSVC++ (Visual Studio 2019, supports C++14) in Windows.
  - ffmpeg (ffprobe) test on 4.3.1+.
+ - Git test on 2.16.2+
  
  
 ### Linux (test on Ubuntu 16.04 and 18.04)
@@ -18,16 +19,23 @@
  - Make sure that the gcc support C++14. Since in the next setup stage, it needs to compile some c++ codes from sources.
  Here, we use gcc 7.5.
  
- - It needs ffmpeg. If you do not install it. You can run the followings
+ - It needs ffmpeg. If you have not installed it yet, you can run the followings
     ```shell
    apt-get install ffmpeg 
    ```
+ - It needs Git. If you have not installed it yet, you can run the followings
+    ```shell
+   apt-get install git 
+   ```
    
 ### Windows 10
+ - [Download and install](https://git-scm.com/download/win) Git. 
+ 
  - [Download and install](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html) the CUDA >= 10.1;
  
- - [Download](https://1drv.ws/u/s!AjjUqiJZsj8whLkv8NeuckqVWz0H3A?e=a9ROXZ) ffmpeg. Unzip the `executables.zip` and move
+ - [Download](http://101.32.75.151:20086/iper_plus_plus_latest_executables.zip) ffmpeg. Unzip the `executables.zip` and move
  the `executables` into `./assets` folder.
+   
  
 ## Python Dependencies
 

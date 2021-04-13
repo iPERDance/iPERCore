@@ -29,11 +29,11 @@ class BaseSMPL(nn.Module):
         """
 
         Args:
-            verts (torch.tensor): (N, 6890, 3)
+            verts (torch.Tensor): (N, 6890, 3)
             linked_ids (np.ndarray or torch.tensor): (N, number of verts, 2 = (from_vert_ids, to_verts_ids);
 
         Returns:
-            linked_verts (torch.tensor): (N, 6890, 3)
+            linked_verts (torch.Tensor): (N, 6890, 3)
         """
 
         bs = verts.shape[0]
@@ -55,10 +55,10 @@ class BaseSMPL(nn.Module):
             theta: (N, 3 + 72 + 10)
         Returns:
             detail_info (dict): it contains the following information,
-                --cam (torch.tensor): (N, 3)
-                --pose (torch.tensor): (N, 72)
-                --shape (torch.tensor): (N, 10)
-                --theta (torch.tensor): (N, 85)
+                --cam (torch.Tensor): (N, 3)
+                --pose (torch.Tensor): (N, 72)
+                --shape (torch.Tensor): (N, 10)
+                --theta (torch.Tensor): (N, 85)
         """
 
         cam = theta[:, 0:3]
@@ -78,7 +78,7 @@ class BaseSMPL(nn.Module):
         """
         Args:
             theta: (N, 3 + 72 + 10);
-            offsets (torch.tensor) : (N, nv, 3) or 0;
+            offsets (torch.Tensor) : (N, nv, 3) or 0;
             links_ids (None or np.ndarray or torch.tensor): (nv, 2) or (bs, nv, 2)
         Returns:
 
@@ -103,18 +103,18 @@ class BaseSMPL(nn.Module):
         """
             calc verts, joint2d, joint3d, Rotation matrix
         Args:
-            theta (torch.tensor): (N, 85) = (N , 3 + 72 + 10)
-            offsets (torch.tensor) : (N, nv, 3) or 0
+            theta (torch.Tensor): (N, 85) = (N , 3 + 72 + 10)
+            offsets (torch.Tensor) : (N, nv, 3) or 0
             links_ids (None or np.ndarray or torch.tensor): (nv, 2) or (bs, nv, 2)
         Returns:
             detail_info (dict): the details information of smpl, including
-                --theta (torch.tensor): (N, 85),
-                --cam (torch.tensor):   (N, 3),
-                --pose (torch.tensor):  (N, 72),
-                --shape (torch.tensor): (N, 10),
-                --verts (torch.tensor): (N, 6890, 3),
-                --j2d (torch.tensor):   (N, 19, 2),
-                --j3d (torch.tensor):   (N, 19, 3)
+                --theta (torch.Tensor): (N, 85),
+                --cam (torch.Tensor):   (N, 3),
+                --pose (torch.Tensor):  (N, 72),
+                --shape (torch.Tensor): (N, 10),
+                --verts (torch.Tensor): (N, 6890, 3),
+                --j2d (torch.Tensor):   (N, 19, 2),
+                --j3d (torch.Tensor):   (N, 19, 3)
 
         """
 

@@ -1,57 +1,87 @@
 # Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
 
-import os
-import glob
-
 from iPERCore.models import ModelsFactory
+from iPERCore.tools.utils.signals.smooth import temporal_smooth_smpls
+from iPERCore.tools.utils.filesio.persistence import clear_dir
+from iPERCore.tools.utils.multimedia.video import fuse_src_ref_multi_outputs
 from iPERCore.services.preprocess import preprocess
 from iPERCore.services.personalization import personalize
 from iPERCore.services.options.process_info import ProcessInfo
-from iPERCore.services.base_runner import add_hands_params_to_smpl
-from iPERCore.services.options.meta_info import MetaOutput
+from iPERCore.services.options.meta_info import MetaImitateOutput
+from iPERCore.services.base_runner import (
+    get_src_info_for_inference,
+    add_hands_params_to_smpl,
+    add_special_effect,
+    add_bullet_time_effect
+)
 
-from iPERCore.tools.utils.signals.smooth import temporal_smooth_smpls
-from iPERCore.tools.utils.filesio.cv_utils import load_parse, read_cv2_img, normalize_img
-from iPERCore.tools.utils.filesio.persistence import clear_dir
-from iPERCore.tools.utils.multimedia.video import fuse_source_reference_output
 
+def call_imitator_inference(opt, imitator, meta_output, ref_paths,
+                            ref_smpls, visualizer, use_selected_f2pts=False):
+    """
 
-def get_src_info_for_inference(opt, vid_info):
-    img_dir = vid_info["img_dir"]
-    src_ids = vid_info["src_ids"]
-    image_names = vid_info["images"]
+    Args:
+        opt:
+        imitator:
+        meta_output:
+        ref_paths:
+        ref_smpls:
+        visualizer:
+        use_selected_f2pts:
 
-    alpha_paths = vid_info["alpha_paths"]
-    inpainted_paths = vid_info["inpainted_paths"]
-    actual_bg_path = vid_info["actual_bg_path"]
+    Returns:
+        outputs (List[Tuple[str]]):
+    """
 
-    masks = []
-    for i in src_ids:
-        parse_path = alpha_paths[i]
-        mask = load_parse(parse_path, opt.image_size)
-        masks.append(mask)
+    # if there are more than 10 frames, then we will use temporal smooth of smpl.
+    if len(ref_smpls) > 10:
+        ref_smpls = temporal_smooth_smpls(ref_smpls, pose_fc=meta_output.pose_fc, cam_fc=meta_output.cam_fc)
 
-    if actual_bg_path is not None:
-        bg_img = read_cv2_img(actual_bg_path)
-        bg_img = normalize_img(bg_img, image_size=opt.image_size, transpose=True)
+    out_imgs_dir = clear_dir(meta_output.out_img_dir)
 
-    elif opt.use_inpaintor:
-        bg_img = read_cv2_img(inpainted_paths[0])
-        bg_img = normalize_img(bg_img, image_size=opt.image_size, transpose=True)
+    effect_info = meta_output.effect_info
+    view_directions = effect_info["View"]
+    bullet_time_list = effect_info["BT"]
 
+    # check use multi-view outputs
+    if len(view_directions) == 0:
+        # if do not use multi-view outputs, only add bullet-time effects
+        ref_smpls, ref_imgs_paths = add_bullet_time_effect(ref_smpls, ref_paths, bt_list=bullet_time_list)
+
+        # add hands parameters to smpl
+        ref_smpls = add_hands_params_to_smpl(ref_smpls, imitator.body_rec.np_hands_mean)
+
+        # run imitator's inference function
+        outputs = imitator.inference(tgt_smpls=ref_smpls, cam_strategy=opt.cam_strategy,
+                                     output_dir=out_imgs_dir, prefix="pred_", visualizer=visualizer,
+                                     verbose=True, use_selected_f2pts=use_selected_f2pts)
+        outputs = list(zip(outputs))
     else:
-        bg_img = None
+        outputs = []
+        ref_imgs_paths = ref_paths
+        for i, view in enumerate(view_directions):
+            # otherwise, we will add both multi-view and bullet-time effects
+            ref_view_smpls, ref_imgs_paths = add_special_effect(ref_smpls, ref_paths,
+                                                                view_dir=view, bt_list=bullet_time_list)
 
-    src_info_for_inference = {
-        "paths": [os.path.join(img_dir, image_names[i]) for i in src_ids],
-        "smpls": vid_info["smpls"][src_ids],
-        "offsets": vid_info["offsets"],
-        "links": vid_info["links"],
-        "masks": masks,
-        "bg": bg_img
+            # add hands parameters to smpl
+            ref_view_smpls = add_hands_params_to_smpl(ref_view_smpls, imitator.body_rec.np_hands_mean)
+
+            # run imitator's inference function
+            view_outputs = imitator.inference(tgt_smpls=ref_view_smpls, cam_strategy=opt.cam_strategy,
+                                              output_dir=out_imgs_dir, prefix=f"pred_{i}_{int(view)}_",
+                                              visualizer=visualizer, verbose=True,
+                                              use_selected_f2pts=use_selected_f2pts)
+            outputs.append(view_outputs)
+
+        outputs = list(zip(*outputs))
+
+    results_dict = {
+        "outputs": outputs,
+        "ref_imgs_paths": ref_imgs_paths
     }
 
-    return src_info_for_inference
+    return results_dict
 
 
 def imitate(opt):
@@ -96,7 +126,7 @@ def imitate(opt):
         src_info = src_proc_info.convert_to_src_info(num_source=opt.num_source)
         src_info_for_inference = get_src_info_for_inference(opt, src_info)
 
-        # 1. personalization
+        # source setup
         imitator.source_setup(
             src_path=src_info_for_inference["paths"],
             src_smpl=src_info_for_inference["smpls"],
@@ -121,32 +151,24 @@ def imitate(opt):
             processed_dir: ../tests/debug/primitives/bantangzhuyi_1/processed
             vid_info_path: ../tests/debug/primitives/bantangzhuyi_1/processed/vid_info.pkl
             """
+            meta_output = MetaImitateOutput(meta_src, meta_ref)
 
             ref_proc_info = ProcessInfo(meta_ref)
             ref_proc_info.deserialize()
 
             ref_info = ref_proc_info.convert_to_ref_info()
-            ref_imgs_paths = ref_info["images"]
-            ref_smpls = ref_info["smpls"]
-            ref_smpls = add_hands_params_to_smpl(ref_smpls, imitator.body_rec.np_hands_mean)
 
-            meta_output = MetaOutput(meta_src, meta_ref)
+            results_dict = call_imitator_inference(
+                opt, imitator, meta_output,
+                ref_paths=ref_info["images"],
+                ref_smpls=ref_info["smpls"],
+                visualizer=visualizer
+            )
 
-            # if there are more than 10 frames, then we will use temporal smooth of smpl.
-            if len(ref_smpls) > 10:
-                ref_smpls = temporal_smooth_smpls(ref_smpls, pose_fc=meta_output.pose_fc, cam_fc=meta_output.cam_fc)
-
-            out_imgs_dir = clear_dir(meta_output.imitation_dir)
-
-            outputs = imitator.inference(tgt_paths=ref_imgs_paths, tgt_smpls=ref_smpls,
-                                         cam_strategy=opt.cam_strategy, output_dir=out_imgs_dir,
-                                         visualizer=visualizer, verbose=True)
-
-            fuse_source_reference_output(
-                meta_output.imitation_mp4, src_info_for_inference["paths"],
-                ref_imgs_paths,
-                outputs,
-                # sorted(glob.glob(os.path.join(meta_output.imitation_dir, "pred_*"))),
+            # save to video
+            fuse_src_ref_multi_outputs(
+                meta_output.out_mp4, src_info_for_inference["paths"],
+                results_dict["ref_imgs_paths"], results_dict["outputs"],
                 audio_path=meta_output.audio, fps=meta_output.fps,
                 image_size=opt.image_size, pool_size=opt.num_workers
             )
@@ -180,5 +202,3 @@ if __name__ == "__main__":
 
     OPT = InferenceOptions().parse()
     run_imitator(opt=OPT)
-
-

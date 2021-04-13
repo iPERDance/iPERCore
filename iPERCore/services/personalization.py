@@ -81,6 +81,17 @@ class PersonalizerProcess(Process):
 
         super().__init__(name=f"Personalizer_{opt.gpu_ids}")
 
+    def check_do_visuals(self, iter_start_time):
+        do_visuals = (self._last_display_time is None
+                      or iter_start_time - self._last_display_time > self._opt.Train.display_freq_s) and (
+                         self._tb_visualizer is not None)
+        return do_visuals
+
+    def check_print_terminal(self, iter_start_time, do_visuals):
+        do_print_terminal = (iter_start_time - self._last_print_time > self._opt.Train.print_freq_s or do_visuals) \
+                            and (self._tb_visualizer is not None)
+        return do_print_terminal
+
     def run(self) -> None:
         self._last_display_time = None
         self._last_print_time = time.time()
@@ -108,12 +119,8 @@ class PersonalizerProcess(Process):
                 iter_start_time = time.time()
 
                 # display flags
-                do_visuals = (self._last_display_time is None
-                              or time.time() - self._last_display_time > self._opt.Train.display_freq_s) and (
-                                 self._tb_visualizer is not None
-                             )
-                do_print_terminal = (time.time() - self._last_print_time > self._opt.Train.print_freq_s or do_visuals) \
-                                    and (self._tb_visualizer is not None)
+                do_visuals = self.check_do_visuals(iter_start_time)
+                do_print_terminal = self.check_print_terminal(iter_start_time, do_visuals)
 
                 # train model
                 self._model.set_input(train_batch, self._device)
@@ -128,12 +135,12 @@ class PersonalizerProcess(Process):
                 # display terminal
                 if do_print_terminal:
                     self._display_terminal(iter_start_time, i_epoch, i_train_batch, do_visuals)
-                    self._last_print_time = time.time()
+                    self._last_print_time = iter_start_time
 
                 # display visualizer
                 if do_visuals:
                     self._display_visualizer_train(total_steps)
-                    self._last_display_time = time.time()
+                    self._last_display_time = iter_start_time
 
                 if total_steps >= total_iters:
                     break

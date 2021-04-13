@@ -1,54 +1,25 @@
 # Copyright (c) 2020-2021 impersonator.org authors (Wen Liu and Zhixin Piao). All rights reserved.
 
-"""
-
-Assume that we put the iPER data into $FashionVideo_root_dir
-
-1. Download the FashionVideo dataset, https://vision.cs.ubc.ca/datasets/fashion/
-    1.1 download the `fashion_train.txt` into $FashionVideo_root_dir:
-        https://vision.cs.ubc.ca/datasets/fashion/resources/fashion_dataset/fashion_train.txt
-
-    1.2 download the `fashion_test.txt` into $FashionVideo_root_dir:
-        https://vision.cs.ubc.ca/datasets/fashion/resources/fashion_dataset/fashion_test.txt
-
-    1.3 crawl each video in `fashion_train.txt`, as well as `fashion_test.txt` and
-        save them into $FashionVideo_root_dir/videos
-
-   The file structure of $FashionVideo_root_dir will be:
-
-   $FashionVideo_root_dir:
-        --fashion_train.txt
-        --fashion_test.txt
-        --videos:
-
-
-2. Preprocess all videos in $FashionVideo_root_dir/videos.
-
-
-3. Reorganize the processed data for evaluations, https://github.com/iPERDance/his_evaluators
-
-
-"""
-
+import sys
 import os
 import argparse
-from tqdm import tqdm
-import requests
-import warnings
+import subprocess
 import math
 import numpy as np
 import torch
-from typing import List, Tuple
 import cv2
 from concurrent.futures import ProcessPoolExecutor
+from tqdm import tqdm
 
 from iPERCore.services.options.meta_info import MetaInputInfo, MetaProcess
 from iPERCore.services.options.process_info import ProcessInfo
-from iPERCore.tools.utils.filesio.persistence import mkdir, load_pickle_file, write_pickle_file
+from iPERCore.tools.utils.filesio.persistence import mkdir, load_pickle_file
 from iPERCore.tools.utils.filesio.cv_utils import read_cv2_img, save_cv2_img
 from iPERCore.tools.utils.multimedia.video import video2frames
 from iPERCore.tools.human_digitalizer.renders import SMPLRenderer
 from iPERCore.tools.human_digitalizer.bodynets import SMPL
+
+from scripts.train.download_utils import robust_download_from_url, raise_error
 
 
 parser = argparse.ArgumentParser()
@@ -60,13 +31,99 @@ args = parser.parse_args()
 # the render image size
 IMAGE_SIZE = 1080
 MotionSynthetic_root_dir = args.output_dir
-MotionSynthetic_video_dir = mkdir(os.path.join(MotionSynthetic_root_dir, "videos"))
-MotionSynthetic_poses_dir = mkdir(os.path.join(MotionSynthetic_root_dir, "poses"))
+MotionSynthetic_video_dir = os.path.join(MotionSynthetic_root_dir, "videos")
+MotionSynthetic_poses_dir = os.path.join(MotionSynthetic_root_dir, "poses")
+MotionSynthetic_train_txt = os.path.join(MotionSynthetic_root_dir, "train.txt")
+MotionSynthetic_val_txt = os.path.join(MotionSynthetic_root_dir, "val.txt")
+MotionSynthetic_video_zip = os.path.join(MotionSynthetic_root_dir, "videos.zip")
+MotionSynthetic_poses_zip = os.path.join(MotionSynthetic_root_dir, "poses.zip")
 MotionSynthetic_processed_dir = mkdir(os.path.join(MotionSynthetic_root_dir, "primitives"))
+
+# MotionSynthetic URLs
+MotionSynthetic_url = "http://download.impersonator.org:20086/datasets/motionSynthetic"
+MotionSynthetic_poses_url = os.path.join(MotionSynthetic_url, "poses.zip")
+MotionSynthetic_videos_url = os.path.join(MotionSynthetic_url, "videos.zip")
+MotionSynthetic_train_txt_url = os.path.join(MotionSynthetic_url, "train.txt")
+MotionSynthetic_val_txt_url = os.path.join(MotionSynthetic_url, "val.txt")
+
+
+def get_video_dirs(txt_file):
+    vid_names = []
+    with open(txt_file, "r") as reader:
+        for line in reader:
+            line = line.rstrip()
+            vid_names.append(line)
+
+    return vid_names
+
+
+def check_has_downloaded():
+    global MotionSynthetic_train_txt, MotionSynthetic_val_txt, MotionSynthetic_video_dir, MotionSynthetic_poses_dir
+
+    has_download = os.path.exists(MotionSynthetic_train_txt) and os.path.exists(MotionSynthetic_val_txt)
+
+    if has_download:
+        train_vid_names = get_video_dirs(MotionSynthetic_train_txt)
+        val_vid_names = get_video_dirs(MotionSynthetic_val_txt)
+
+        all_vid_names = train_vid_names + val_vid_names
+
+        for vid_name in all_vid_names:
+            vid_path = os.path.join(MotionSynthetic_video_dir, vid_name + ".mp4")
+            print(vid_path)
+            if not os.path.exists(vid_path):
+                has_download = False
+                break
+
+            pose_path = os.path.join(MotionSynthetic_poses_dir, vid_name, "pose_shape.pkl")
+            print(pose_path)
+            if not os.path.exists(pose_path):
+                has_download = False
+                break
+
+    return has_download
 
 
 def download():
-    pass
+    global MotionSynthetic_train_txt_url, MotionSynthetic_train_txt, \
+           MotionSynthetic_val_txt_url, MotionSynthetic_val_txt, \
+           MotionSynthetic_videos_url, MotionSynthetic_video_zip, MotionSynthetic_video_dir, \
+           MotionSynthetic_poses_url, MotionSynthetic_poses_zip, MotionSynthetic_poses_dir, \
+           MotionSynthetic_root_dir
+
+    # 1. download train.txt, val.txt, videos.zip and poses.zip
+    download_success = True
+
+    url_dst_pairs = [
+        (MotionSynthetic_train_txt_url, MotionSynthetic_train_txt),
+        (MotionSynthetic_val_txt_url, MotionSynthetic_val_txt),
+        (MotionSynthetic_videos_url, MotionSynthetic_video_zip),
+        (MotionSynthetic_poses_url, MotionSynthetic_poses_zip),
+    ]
+
+    for url, dst in url_dst_pairs:
+        print(f"Download {url} and save it into {dst}")
+
+        if os.path.exists(dst):
+            continue
+
+        success = robust_download_from_url(url, dst)
+        if not success or not os.path.join(dst):
+            download_success = False
+            raise_error(f"Download {url} failed.")
+
+    if not check_has_downloaded():
+        # 2. unzip the videos.zip
+        cmd = f"unzip {MotionSynthetic_video_zip}  -d   {MotionSynthetic_root_dir}"
+        print(cmd)
+        subprocess.run(cmd, shell=True)
+
+        # 3. unzip the poses.zip
+        cmd = f"unzip {MotionSynthetic_poses_zip}  -d   {MotionSynthetic_root_dir}"
+        print(cmd)
+        subprocess.run(cmd, shell=True)
+
+    return download_success
 
 
 def render_mask(smpl, render, cams, poses, shapes, offsets,
@@ -257,10 +314,10 @@ def per_instance_func(smpl, render, process_info):
     parse_out_dir = process_info["out_parse_dir"]
     visual_path = process_info["out_visual_path"]
 
-    # render_mask(
-    #     smpl, render, smpl_info["cams"], smpl_info["pose"], shape, offsets,
-    #     out_img_dir, img_names, parse_out_dir, visual_path
-    # )
+    render_mask(
+        smpl, render, smpl_info["cams"], smpl_info["pose"], shape, offsets,
+        out_img_dir, img_names, parse_out_dir, visual_path
+    )
 
     process_info["has_run_detector"] = True
     process_info["has_run_cropper"] = True
@@ -285,8 +342,11 @@ def process_func(gpu_id, process_info_list):
 
     print(f"----------------------------gpu_id = {gpu_id}----------------------")
     for process_info in process_info_list:
-        print(gpu_id, process_info)
-        per_instance_func(smpl, render, process_info)
+        if not process_info.check_has_been_processed(process_info.vid_infos):
+            print(gpu_id, process_info)
+            per_instance_func(smpl, render, process_info)
+        else:
+            print(process_info)
 
 
 def process_data():
@@ -309,34 +369,9 @@ def reorganize():
     pass
 
 
-# def copy_offsets_smpl_info():
-#     global MotionSynthetic_root_dir, MotionSynthetic_poses_dir
-#
-#     people_snapshot_dir = "/p300/tpami/datasets/round-1-datasets/motionSynthetic/people_snapshot_public"
-#
-#     vid_names = os.listdir(MotionSynthetic_poses_dir)
-#
-#     for vid_name in vid_names:
-#         smpl_path = os.path.join(MotionSynthetic_poses_dir, vid_name, "pose_shape.pkl")
-#         smpl_info = load_pickle_file(smpl_path)
-#
-#         if vid_name.startswith("PeopleSnapshot"):
-#             people_snapshot_name = vid_name.split("_")[1]
-#             people_snapshot_vid_dir = os.path.join(people_snapshot_dir, people_snapshot_name)
-#
-#             v_info = load_pickle_file(os.path.join(people_snapshot_vid_dir, "consensus.pkl"))
-#             offsets = v_info["v_personal"]
-#
-#             smpl_info["offsets"] = offsets
-#         else:
-#             smpl_info["offsets"] = np.zeros((6890, 3), dtype=np.float32)
-#
-#         write_pickle_file(smpl_path, smpl_info)
-#
-#         print(smpl_path)
-
-
 if __name__ == "__main__":
-    # download()
+    is_download = check_has_downloaded()
+    if not is_download:
+        download()
     process_data()
     # copy_offsets_smpl_info()

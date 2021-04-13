@@ -43,12 +43,12 @@ out_dilate_ks = 9
 
 map_name = "uv_seg"
 face_path = "./assets/checkpoints/pose3d/smpl_faces.npy"
-fim_enc_path = "./assets/checkpoints/pose3d/mapper_fim_enc.txt"
-uv_map_path = "./assets/checkpoints/pose3d/mapper_uv.txt"
-part_path = "./assets/checkpoints/pose3d/smpl_part_info.json"
-front_path = "./assets/checkpoints/pose3d/front_body.json"
-head_path = "./assets/checkpoints/pose3d/head.json"
-facial_path = "./assets/checkpoints/pose3d/front_facial.json"
+fim_enc_path = "./assets/configs/pose3d/mapper_fim_enc.txt"
+uv_map_path = "./assets/configs/pose3d/mapper_uv.txt"
+part_path = "./assets/configs/pose3d/smpl_part_info.json"
+front_path = "./assets/configs/pose3d/front_body.json"
+head_path = "./assets/configs/pose3d/head.json"
+facial_path = "./assets/configs/pose3d/front_facial.json"
 
 ###################### 3. LiquidWarping GAN, generator and discriminator #############################
 train_name = "LWGAugBGTrainer"
@@ -59,15 +59,15 @@ dis_name = "patch_global_body_head"
 neural_render_cfg_path = "./assets/configs/neural_renders/AttLWB-SPADE.toml"
 load_path_G = "None"
 load_path_D = "None"
-load_epoch = -1
+load_iter = -1
 
 [Train]
 # visualization
 num_iters_validate = 1
 tb_visual = true
-print_freq_s = 180
-display_freq_s = 600
-save_latest_freq_s = 21600
+print_freq_s = 180              # print errors/loss on terminal per 2 min
+display_freq_s = 600            # show images on tensorboard per 10 min
+save_latest_freq_s = 7200       # save a checkpoint per 2 hours
 
 # loss
 use_face = true
@@ -95,6 +95,6 @@ D_adam_b2 = 0.999
 lr_G = 0.0001
 lr_D = 0.0001
 final_lr = 0.00001
-niters_or_epochs_no_decay = 2   # fixing learning rate at the first niters_or_epochs_no_decay
-niters_or_epochs_decay = 0        # then, decreasing the learning rate
-aug_bg = true                   # background
+niters_or_epochs_no_decay = 400000   # fixing learning rate at the first niters_or_epochs_no_decay
+niters_or_epochs_decay = 0           # then, decreasing the learning rate
+aug_bg = true                        # background

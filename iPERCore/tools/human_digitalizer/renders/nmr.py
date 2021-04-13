@@ -124,14 +124,14 @@ def hamilton_product(qa, qb):
     return torch.stack([q_mult_0, q_mult_1, q_mult_2, q_mult_3], dim=-1)
 
 
-class SMPLRenderer(nn.Module):
+class BaseSMPLRenderer(nn.Module):
     def __init__(self, face_path="assets/checkpoints/pose3d/smpl_faces.npy",
-                 fim_enc_path="assets/checkpoints/pose3d/mapper_fim_enc.txt",
-                 uv_map_path="assets/checkpoints/pose3d/mapper_uv.txt",
-                 part_path="assets/checkpoints/pose3d/smpl_part_info.json",
-                 front_path='assets/checkpoints/pose3d/front_body.json',
-                 head_path='assets/checkpoints/pose3d/head.json',
-                 facial_path='assets/checkpoints/pose3d/front_facial.json',
+                 fim_enc_path="assets/configs/pose3d/mapper_fim_enc.txt",
+                 uv_map_path="assets/configs/pose3d/mapper_uv.txt",
+                 part_path="assets/configs/pose3d/smpl_part_info.json",
+                 front_path="assets/configs/pose3d/front_body.json",
+                 head_path="assets/configs/pose3d/head.json",
+                 facial_path="assets/configs/pose3d/front_facial.json",
                  map_name="uv_seg", tex_size=3, image_size=256,
                  anti_aliasing=True, fill_back=False, background_color=(0, 0, 0),
                  viewing_angle=30, near=0.1, far=25.0,
@@ -156,7 +156,7 @@ class SMPLRenderer(nn.Module):
             top_k:
         """
 
-        super(SMPLRenderer, self).__init__()
+        super(BaseSMPLRenderer, self).__init__()
 
         self.background_color = background_color
         self.anti_aliasing = anti_aliasing
@@ -356,10 +356,6 @@ class SMPLRenderer(nn.Module):
         fim, wim = nr.rasterize_face_index_map_and_weight_map(f_img2uvs, self.image_size, False)
 
         return fim, wim
-
-    def get_f_uvs2img(self, bs):
-        f_uvs2img = self.f_uvs2img.repeat(bs, 1, 1, 1)
-        return f_uvs2img
 
     def render_depth(self, cam, vertices):
         bs = cam.shape[0]
@@ -598,6 +594,10 @@ class SMPLRenderer(nn.Module):
         grid = torch.stack([yv, xv], dim=-1)
         return grid
 
+    def get_f_uvs2img(self, bs):
+        f_uvs2img = self.f_uvs2img.repeat(bs, 1, 1, 1)
+        return f_uvs2img
+
     def get_selected_f2pts(self, f2pts, selected_fids):
         """
 
@@ -761,3 +761,228 @@ class SMPLRenderer(nn.Module):
         global COLORS
         color_val = torch.tensor(COLORS[color][::-1]).float() * 2 - 1.0
         return torch.ones((self.nf, self.tex_size, self.tex_size, self.tex_size, 3), dtype=torch.float32) * color_val
+
+
+class SMPLRenderer(BaseSMPLRenderer):
+    def __init__(self, face_path="assets/checkpoints/pose3d/smpl_faces.npy",
+                 fim_enc_path="assets/configs/pose3d/mapper_fim_enc.txt",
+                 uv_map_path="assets/configs/pose3d/mapper_uv.txt",
+                 part_path="assets/configs/pose3d/smpl_part_info.json",
+                 front_path="assets/configs/pose3d/front_body.json",
+                 head_path="assets/configs/pose3d/head.json",
+                 facial_path="assets/configs/pose3d/front_facial.json",
+                 map_name="uv_seg", tex_size=3, image_size=256,
+                 anti_aliasing=True, fill_back=False, background_color=(0, 0, 0),
+                 viewing_angle=30, near=0.1, far=25.0,
+                 has_front=False, top_k=5):
+        """
+
+        Args:
+            face_path:
+            fim_enc_path:
+            uv_map_path:
+            part_path:
+            map_name:
+            tex_size:
+            image_size:
+            anti_aliasing:
+            fill_back:
+            background_color:
+            viewing_angle:
+            near:
+            far:
+            has_front:
+            top_k:
+        """
+
+        super(SMPLRenderer, self).__init__(face_path=face_path,
+                                           fim_enc_path=fim_enc_path,
+                                           uv_map_path=uv_map_path,
+                                           part_path=part_path,
+                                           front_path=front_path,
+                                           head_path=head_path,
+                                           facial_path=facial_path,
+                                           map_name=map_name, tex_size=tex_size, image_size=image_size,
+                                           anti_aliasing=anti_aliasing, fill_back=fill_back,
+                                           background_color=background_color,
+                                           viewing_angle=viewing_angle, near=near, far=far,
+                                           has_front=has_front, top_k=top_k)
+
+    def forward(self, cam, vertices, uv_imgs, dynamic=True, get_fim=False):
+        bs = cam.shape[0]
+
+        # TODO, bug of neural render with batch_size = 3, https://github.com/daniilidis-group/neural_renderer/issues/29
+        if bs == 3:
+            images = []
+            textures = []
+            fim = []
+
+            for i in range(bs):
+                _cam = cam[i:i+1]
+                _vertices = vertices[i:i+1]
+                _uv_imgs = uv_imgs[i:i+1]
+
+                outs = super(SMPLRenderer, self).forward(_cam, _vertices, _uv_imgs, dynamic=dynamic, get_fim=True)
+
+                images.append(outs[0])
+                textures.append(outs[1])
+                fim.append(outs[2])
+
+            images = torch.cat(images, dim=0)
+            textures = torch.cat(textures, dim=0)
+
+            if get_fim:
+                fim = torch.cat(fim, dim=0)
+                return images, textures, fim
+            else:
+                return images, textures
+
+        else:
+            return super(SMPLRenderer, self).forward(cam, vertices, uv_imgs, dynamic=dynamic, get_fim=get_fim)
+
+    def render(self, cam, vertices, textures, faces=None, get_fim=False):
+        bs = cam.shape[0]
+
+        # TODO, bug of neural render with batch_size = 3, https://github.com/daniilidis-group/neural_renderer/issues/29
+        if bs == 3:
+            images = []
+            fim = []
+
+            for i in range(bs):
+                _cam = cam[i:i+1]
+                _vertices = vertices[i:i+1]
+
+                _images, _fim = super(SMPLRenderer, self).render(_cam, _vertices, textures, faces, get_fim=get_fim)
+
+                images.append(_images)
+                fim.append(_fim)
+
+            images = torch.cat(images, dim=0)
+
+            if get_fim:
+                fim = torch.cat(fim, dim=0)
+                return images, fim
+            else:
+                return images, None
+
+        else:
+            return super(SMPLRenderer, self).render(cam, vertices, textures, faces, get_fim)
+
+    def render_fim(self, cam, vertices, smpl_faces=True):
+        bs = cam.shape[0]
+
+        # TODO, bug of neural render with batch_size = 3, https://github.com/daniilidis-group/neural_renderer/issues/29
+        if bs == 3:
+            fim = []
+
+            for i in range(bs):
+                _cam = cam[i:i+1]
+                _vertices = vertices[i:i+1]
+
+                _fim = super(SMPLRenderer, self).render_fim(_cam, _vertices, smpl_faces)
+
+                fim.append(_fim)
+
+            fim = torch.cat(fim, dim=0)
+            return fim
+
+        else:
+            return super(SMPLRenderer, self).render_fim(cam, vertices, smpl_faces)
+
+    def render_fim_wim(self, cam, vertices, smpl_faces=True):
+        bs = cam.shape[0]
+
+        # TODO, bug of neural render with batch_size = 3, https://github.com/daniilidis-group/neural_renderer/issues/29
+        if bs == 3:
+            f2pts = []
+            fim = []
+            wim = []
+
+            for i in range(bs):
+                _cam = cam[i:i+1]
+                _vertices = vertices[i:i+1]
+
+                _f2pts, _fim, _wim = super(SMPLRenderer, self).render_fim_wim(_cam, _vertices, smpl_faces)
+
+                f2pts.append(_f2pts)
+                fim.append(_fim)
+                wim.append(_wim)
+
+            f2pts = torch.cat(f2pts, dim=0)
+            fim = torch.cat(fim, dim=0)
+            wim = torch.cat(wim, dim=0)
+
+            return f2pts, fim, wim
+
+        else:
+            return super(SMPLRenderer, self).render_fim_wim(cam, vertices, smpl_faces)
+
+    def render_uv_fim_wim(self, bs):
+        """
+
+        Args:
+            bs:
+
+        Returns:
+
+        """
+
+        # TODO, bug of neural render with batch_size = 3, https://github.com/daniilidis-group/neural_renderer/issues/29
+        if bs == 3:
+            fim = []
+            wim = []
+            for i in range(bs):
+                _fim, _wim = super(SMPLRenderer, self).render_uv_fim_wim(bs=1)
+                fim.append(_fim)
+                wim.append(_wim)
+            fim = torch.cat(fim, dim=0)
+            wim = torch.cat(wim, dim=0)
+        else:
+            return super(SMPLRenderer, self).render_uv_fim_wim(bs)
+
+        return fim, wim
+
+    def render_depth(self, cam, vertices):
+        bs = cam.shape[0]
+
+        # TODO, bug of neural render with batch_size = 3, https://github.com/daniilidis-group/neural_renderer/issues/29
+        if bs == 3:
+            images = []
+
+            for i in range(bs):
+                _cam = cam[i:i+1]
+                _vertices = vertices[i:i+1]
+
+                _images = super(SMPLRenderer, self).render_depth(_cam, _vertices)
+
+                images.append(_images)
+
+            images = torch.cat(images, dim=0)
+
+            return images
+
+        else:
+            return super(SMPLRenderer, self).render_depth(cam, vertices)
+
+    def render_silhouettes(self, cam, vertices, faces=None):
+        bs = cam.shape[0]
+
+        # TODO, bug of neural render with batch_size = 3, https://github.com/daniilidis-group/neural_renderer/issues/29
+        if bs == 3:
+
+            images = []
+            for i in range(bs):
+                _cam = cam[i:i+1]
+                _vertices = vertices[i:i+1]
+
+                _images = super(SMPLRenderer, self).render_silhouettes(_cam, _vertices, faces)
+
+                images.append(_images)
+
+            images = torch.cat(images, dim=0)
+
+            return images
+
+        else:
+            return super(SMPLRenderer, self).render_silhouettes(cam, vertices, faces)
+

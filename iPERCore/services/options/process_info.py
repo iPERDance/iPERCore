@@ -113,6 +113,26 @@ class ProcessInfo(object):
     def __contains__(self, item):
         return item in self.vid_infos
 
+    def __str__(self):
+        _str = "----------------------ProcessInfo----------------------\n"
+        _str += "meta_input:\n"
+
+        input_info = self.vid_infos["input_info"]
+
+        for meta_input_key, meta_input_val in input_info["meta_input"].items():
+            _str += f"\t{meta_input_key}: {meta_input_val}\n"
+
+        _str += f"processed_dir: {input_info['processed_dir']}\n"
+        _str += f"vid_info_path: {input_info['vid_info_path']}\n"
+        _str += f"has_finished: {self.vid_infos['has_finished']}\n"
+
+        _str += "-------------------------------------------------------"
+
+        return _str
+
+    def __repr__(self):
+        return self.__str__()
+
     def serialize(self):
         vid_info_path = self.vid_infos["input_info"]["vid_info_path"]
         write_pickle_file(vid_info_path, self.vid_infos)
@@ -120,7 +140,9 @@ class ProcessInfo(object):
     def deserialize(self):
         vid_info_path = self.vid_infos["input_info"]["vid_info_path"]
         if os.path.exists(vid_info_path):
+            input_info = self.vid_infos["input_info"]
             self.vid_infos = load_pickle_file(vid_info_path)
+            self.vid_infos["input_info"] = input_info
 
     def declare(self):
         clear_dir(self.vid_infos["input_info"]["processed_dir"])
@@ -318,10 +340,18 @@ def read_src_infos(vid_infos, num_source, num_verts=6890, ignore_bg=False):
     # 8. load digital deformation, including offsets and links.
     processed_deform = vid_infos["processed_deform"]
 
-    links = processed_deform["links"]
+    links_ids = processed_deform["links"]
     offsets = processed_deform["offsets"]
     if offsets is None:
         offsets = np.zeros((num_verts, 3), dtype=np.float32)
+
+    if links_ids is not None:
+        num_links = links_ids.shape[0]
+        links = np.zeros((num_verts, 3), dtype=np.int64)
+        links[0:num_links, 0:2] = links_ids
+        links[0:num_links, 2] = 1
+    else:
+        links = np.zeros((num_verts, 3), dtype=np.int64)
 
     formated_vid_infos = {
         "input_info": vid_infos["input_info"],

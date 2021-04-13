@@ -2,6 +2,7 @@
 
 import time
 from collections import OrderedDict
+import pprint
 
 import numpy as np
 import torch
@@ -16,8 +17,17 @@ from iPERCore.data.dataset import DatasetFactory
 from iPERCore.tools.trainers import create_trainer
 
 
-def my_worker_init_fn(worker_id):
-    np.random.seed(np.random.get_state()[1][0] + worker_id)
+def set_cudnn():
+    # cudnn related setting
+    cudnn.benchmark = True
+    cudnn.deterministic = False
+    # cudnn.deterministic = True
+    cudnn.enabled = True
+
+
+def worker_init_fn(worker_id):
+    worker_seed = np.random.get_state()[1][0] + worker_id
+    np.random.seed(worker_seed)
 
 
 class Train(object):
@@ -26,11 +36,9 @@ class Train(object):
         self._train()
 
     def _setup(self, args):
+
         if args.use_cudnn:
-            # cudnn related setting
-            cudnn.benchmark = True
-            cudnn.deterministic = False
-            cudnn.enabled = True
+            set_cudnn()
 
         gpus = args.gpu_ids
         distributed = len(gpus) > 1
@@ -42,7 +50,7 @@ class Train(object):
                 backend="nccl", init_method="env://"
             )
 
-        torch.autograd.set_detect_anomaly(True)
+        # torch.autograd.set_detect_anomaly(True)
 
         # prepare data
         train_dataset = DatasetFactory.get_by_name(args.dataset_mode, args, is_for_train=True)
@@ -54,7 +62,6 @@ class Train(object):
             train_sampler = None
             shuffle = not args.serial_batches
 
-        # TODO: worker_init_fn
         trainloader = torch.utils.data.DataLoader(
             train_dataset,
             batch_size=args.batch_size,
@@ -62,17 +69,19 @@ class Train(object):
             num_workers=args.num_workers,
             pin_memory=True,
             drop_last=True,
-            sampler=train_sampler)
+            sampler=train_sampler,
+            worker_init_fn=worker_init_fn
+        )
 
         test_dataset = DatasetFactory.get_by_name(args.dataset_mode, args, is_for_train=False)
-
-        # TODO: worker_init_fn
         testloader = torch.utils.data.DataLoader(
             test_dataset,
             batch_size=args.batch_size,
             shuffle=True,
             num_workers=args.num_workers,
-            pin_memory=True)
+            pin_memory=True,
+            worker_init_fn=worker_init_fn
+        )
 
         # build model trainer
         model_trainer = create_trainer(args.train_name, args, device)
@@ -89,6 +98,7 @@ class Train(object):
 
         self._opt = args
         self._num_gpus = len(gpus)
+        self._num_per_iter = self._num_gpus * args.batch_size
         self._device = device
         self._model = model_trainer
         self._trainloader = trainloader
@@ -100,91 +110,97 @@ class Train(object):
         if args.local_rank == 0:
             print("#train video clips = %d" % self._train_size)
             print("#test video clips = %d" % self._test_size)
+            pprint.pprint(args)
+
+    def check_do_visuals(self, iter_start_time):
+        do_visuals = (self._last_display_time is None
+                      or iter_start_time - self._last_display_time > self._opt.Train.display_freq_s) and (
+                         self._tb_visualizer is not None)
+        return do_visuals
+
+    def check_print_terminal(self, iter_start_time, do_visuals):
+        do_print_terminal = (iter_start_time - self._last_print_time > self._opt.Train.print_freq_s or do_visuals) \
+                            and (self._tb_visualizer is not None)
+        return do_print_terminal
+
+    def check_save_model(self, iter_start_time):
+        do_save = (self._last_save_latest_time is None
+                   or iter_start_time - self._last_save_latest_time > self._opt.Train.save_latest_freq_s) and (
+                      self._tb_visualizer is not None)
+        return do_save
+
+    def check_is_local(self):
+        # check is local rank
+        is_local_rank = self._opt.local_rank == 0
+        return is_local_rank
 
     def _train(self):
-        self._total_steps = self._opt.load_epoch * self._train_size
         # self._iters_per_epoch = self._train_size // (self._opt.batch_size * self._num_gpus)
         self._iters_per_epoch = len(self._trainloader)
         self._last_display_time = None
         self._last_save_latest_time = None
         self._last_print_time = time.time()
 
-        for i_epoch in range(self._opt.load_epoch + 1,
-                             self._opt.Train.niters_or_epochs_no_decay + self._opt.Train.niters_or_epochs_decay + 1):
-            epoch_start_time = time.time()
+        total_steps = self._opt.load_iter
+        self._total_iters = self._opt.Train.niters_or_epochs_no_decay + self._opt.Train.niters_or_epochs_decay
 
-            # train epoch
-            self._train_epoch(i_epoch)
+        i_epoch = 0
+        while total_steps < self._total_iters:
+            i_epoch += 1
+            for i_train_batch, train_batch in enumerate(self._trainloader):
+                iter_start_time = time.time()
 
-            if self._check_is_major_rank():
-                # save model
-                print("saving the model at the end of epoch %d, iters %d" % (i_epoch, self._total_steps))
-                self._model.save(i_epoch)
+                # check is local rank
+                is_local_rank = self.check_is_local()
 
-                # print epoch info
-                time_epoch = time.time() - epoch_start_time
-                print("End of epoch %d / %d \t Time Taken: %d sec (%d min or %d h)" %
-                      (i_epoch, self._opt.Train.niters_or_epochs_no_decay + self._opt.Train.niters_or_epochs_decay, 
-                       time_epoch, time_epoch / 60, time_epoch / 3600))
+                # display flags
+                do_visuals = self.check_do_visuals(iter_start_time)
+                do_print_terminal = self.check_print_terminal(iter_start_time, do_visuals)
+                do_save = self.check_save_model(iter_start_time)
 
-            # update learning rate
-            if self._check_need_update_lr(i_epoch):
-                self._model.update_learning_rate()
+                # train model
+                self._model.set_input(train_batch, self._device)
+                trainable = (i_train_batch + 1) % self._opt.Train.train_G_every_n_iterations == 0
+                self._model.optimize_parameters(trainable=trainable, keep_data_for_visuals=do_visuals)
+
+                # update epoch info
+                total_steps += self._num_per_iter
+
+                # display terminal
+                if is_local_rank and do_print_terminal:
+                    self._display_terminal(iter_start_time, i_epoch, total_steps, do_visuals)
+                    self._last_print_time = iter_start_time
+
+                # display visualizer
+                if is_local_rank and do_visuals:
+                    self._display_visualizer_train(total_steps)
+                    self._display_visualizer_val(i_epoch, total_steps)
+                    self._last_display_time = iter_start_time
+
+                # save checkpoints
+                if is_local_rank and do_save:
+                    print(f"saving the model at the end of epoch %d, iters %d" % (i_epoch, total_steps))
+                    self._model.save(total_steps)
+                    self._last_save_latest_time = iter_start_time
+
+                if total_steps >= self._total_iters:
+                    break
+
+        if self.check_is_local():
+            print(f"saving the model at the end of epoch %d, iters %d" % (i_epoch, self._total_iters))
+            self._model.save(self._total_iters)
 
     def _check_is_major_rank(self):
         return self._opt.local_rank == 0
 
     def _check_need_update_lr(self, i_epoch):
         return i_epoch >= self._opt.Train.niters_or_epochs_no_decay and \
-            i_epoch != self._opt.Train.niters_or_epochs_no_decay + self._opt.Train.niters_or_epochs_decay
+               i_epoch != self._opt.Train.niters_or_epochs_no_decay + self._opt.Train.niters_or_epochs_decay
 
-    def _train_epoch(self, i_epoch):
-        is_major_rank = self._check_is_major_rank()
-        epoch_iter = 0
-        self._model.set_train()
-        for i_train_batch, train_batch in enumerate(self._trainloader):
-            iter_start_time = time.time()
-
-            # display flags
-            do_visuals = self._last_display_time is None or iter_start_time - self._last_display_time > self._opt.Train.display_freq_s
-            do_print_terminal = iter_start_time - self._last_print_time > self._opt.Train.print_freq_s or do_visuals
-            do_save = (self._last_save_latest_time is None) or \
-                      (iter_start_time - self._last_save_latest_time > self._opt.Train.save_latest_freq_s)
-
-            # train model
-            self._model.set_input(train_batch, self._device)
-            trainable = (i_train_batch+1) % self._opt.Train.train_G_every_n_iterations == 0
-            self._model.optimize_parameters(keep_data_for_visuals=do_visuals and is_major_rank, trainable=trainable)
-
-            # update epoch info
-            self._total_steps += self._opt.batch_size
-            epoch_iter += self._opt.batch_size
-
-            if is_major_rank:
-                iter_end_time = time.time()
-
-                # display terminal
-                if do_print_terminal:
-                    self._display_terminal(iter_start_time, i_epoch, i_train_batch, do_visuals)
-                    self._last_print_time = iter_end_time
-
-                # display visualizer
-                if do_visuals:
-                    print("visualizing on Tensorboard.")
-                    self._display_visualizer_train(self._total_steps)
-                    self._display_visualizer_val(i_epoch, self._total_steps)
-                    self._last_display_time = iter_end_time
-
-                if do_save:
-                    # save model
-                    print("saving the model at the end of epoch %d, iters %d" % (i_epoch, self._total_steps))
-                    self._model.save(i_epoch)
-                    self._last_save_latest_time = iter_end_time
-
-    def _display_terminal(self, iter_start_time, i_epoch, i_train_batch, visuals_flag):
+    def _display_terminal(self, iter_start_time, i_epoch, step, visuals_flag):
         errors = self._model.get_current_errors()
         t = (time.time() - iter_start_time) / self._opt.batch_size
-        self._tb_visualizer.print_current_train_errors(i_epoch, i_train_batch, self._iters_per_epoch, errors, t, visuals_flag)
+        self._tb_visualizer.print_current_train_errors(i_epoch, step, self._total_iters, errors, t, visuals_flag)
 
     def _display_visualizer_train(self, total_steps):
         self._tb_visualizer.display_current_results(self._model.get_current_visuals(), total_steps, is_train=True)

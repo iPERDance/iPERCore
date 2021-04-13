@@ -26,7 +26,19 @@ def recursive_update_item(sub_models, val, cfg):
 
     top_key = sub_models[0]
     if len(sub_models) == 1:
-        cfg[top_key] = val
+        if top_key not in cfg:
+            cfg[top_key] = val
+        else:
+            # TODO, need a type-checking system
+            old_val = cfg[top_key]
+            if isinstance(old_val, int) and isinstance(val, str):
+                cfg[top_key] = int(val)
+            elif isinstance(old_val, float) and isinstance(val, str):
+                cfg[top_key] = float(val)
+            elif isinstance(old_val, bool) and isinstance(val, str):
+                cfg[top_key] = bool(val)
+            else:
+                cfg[top_key] = val
     else:
         top_sub_cfg = cfg[top_key]
         cfg[top_key] = recursive_update_item(sub_models[1:], val, top_sub_cfg)
@@ -51,6 +63,36 @@ def update_cfg(opt, cfg):
         # "." as the separator
         sub_modules = key.split(".")
         recursive_update_item(sub_modules, val, cfg)
+
+
+def update_extra_args(extra_args, cfg):
+    """
+
+    Args:
+        extra_args:
+        cfg:
+
+    Returns:
+
+    """
+    if len(extra_args) < 2:
+        return cfg
+    elif len(extra_args) % 2 != 0:
+        return cfg
+    else:
+        for i in range(0, len(extra_args), 2):
+            # --num_source
+            key = extra_args[i]
+            if not key.startswith("--"):
+                continue
+
+            key = key[2:]
+            val = extra_args[i + 1]
+
+            sub_modules = key.split(".")
+            recursive_update_item(sub_modules, val, cfg)
+
+        return cfg
 
 
 def load_cfg(cfg_path):
@@ -119,24 +161,27 @@ def load_meta_data(cfg):
         meta_data["checkpoints_dir"], "opts.txt"
     )
 
-    if "src_path" in cfg and "ref_path" in cfg:
+    if "src_path" in cfg:
         src_inputs = parse_src_input(cfg.src_path)
-        ref_inputs = parse_ref_input(cfg.ref_path)
-
         root_primitives_dir = meta_data["root_primitives_dir"]
 
         meta_src = []
-        meta_ref = []
 
         for meta_inp in src_inputs:
             meta_proc = MetaProcess(meta_inp, root_primitives_dir)
             meta_src.append(meta_proc)
+        meta_data["meta_src"] = meta_src
+
+    if "ref_path" in cfg:
+        ref_inputs = parse_ref_input(cfg.ref_path)
+
+        root_primitives_dir = meta_data["root_primitives_dir"]
+
+        meta_ref = []
 
         for meta_inp in ref_inputs:
             meta_proc = MetaProcess(meta_inp, root_primitives_dir)
             meta_ref.append(meta_proc)
-
-        meta_data["meta_src"] = meta_src
         meta_data["meta_ref"] = meta_ref
 
     return meta_data
@@ -188,17 +233,19 @@ def save_cfg(cfg):
     write_toml_file(file_name, cfg)
 
 
-def setup(opt):
+def setup(opt, extra_args=()):
     """
 
     Args:
         opt:
+        extra_args (list or tuple):
 
     Returns:
 
     """
     # parse the configurations
     cfg = load_cfg(opt.cfg_path)
+    update_extra_args(extra_args, cfg)
     update_cfg(opt, cfg)
 
     # get and set gpus

@@ -401,7 +401,7 @@ def preprocess(opt) -> bool:
     # 3. post updating of options based on the pre-processed results.
     opt = post_update_opt(opt)
 
-    successful = len(opt.meta_data["meta_src"]) > 0 and len(opt.meta_data["meta_ref"]) > 0
+    successful = len(opt.meta_data["meta_src"]) > 0 and len(opt.meta_data["meta_ref"]) >= 0
 
     print(f"\tPre-processing: {'successfully' if successful else 'failed'}...")
 

@@ -7,7 +7,6 @@ import argparse
 import subprocess
 import sys
 import time
-import ipdb
 
 from iPERCore.services.options.options_setup import setup
 from iPERCore.services.run_imitator import run_imitator

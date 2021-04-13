@@ -92,7 +92,7 @@ class LWGTrainerABC(BaseTrainerModel, abc.ABC):
         self._init_losses()
 
         # load networks and optimizers
-        if self._opt.load_epoch > 0:
+        if self._opt.load_iter > 0:
             self.load()
         else:
             if self._opt.load_path_G != "None":
@@ -296,14 +296,14 @@ class LWGTrainerABC(BaseTrainerModel, abc.ABC):
             self.save_optimizer(self._optimizer_D, "D", label)
 
     def load(self):
-        load_epoch = self._opt.load_epoch
+        load_iter = self._opt.load_iter
 
         # load G
-        self.load_network(self.G, "G", load_epoch, need_module=False)
+        self.load_network(self.G, "G", load_iter, need_module=False)
 
         if self._use_gan:
             # load D
-            self.load_network(self.D, "D", load_epoch, need_module=False)
+            self.load_network(self.D, "D", load_iter, need_module=False)
 
     def update_learning_rate(self):
         # updated learning rate G

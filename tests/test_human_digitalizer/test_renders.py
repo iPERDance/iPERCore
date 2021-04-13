@@ -8,6 +8,7 @@ import numpy as np
 from easydict import EasyDict
 
 from iPERCore.tools.human_digitalizer.renders import SMPLRenderer
+from iPERCore.tools.utils.geometry import mesh
 from iPERCore.tools.human_pose3d_estimators.spin.runner import SPINRunner
 from iPERCore.tools.utils.visualizers.visdom_visualizer import VisdomVisualizer
 
@@ -45,6 +46,12 @@ class TestRender(unittest.TestCase):
         cls.spin_runner = SPINRunner(cfg, device=cls.device)
 
     def test_01_SMPLRenderer(self):
+        """
+        Test warping.
+
+        Returns:
+
+        """
 
         render = SMPLRenderer().to(self.device)
 
@@ -132,6 +139,54 @@ class TestRender(unittest.TestCase):
 
         visualizer.vis_named_img("tgt_fim", src_wim, transpose=True, denormalize=False)
         visualizer.vis_named_img("tgt_wim", tgt_wim, transpose=True, denormalize=False)
+
+    def test_02_SMPLRenderer(self):
+        """
+        Test render parts
+
+        Returns:
+
+        """
+        render = SMPLRenderer().to(self.device)
+
+        src_paths = [
+            "/p300/tpami/neuralAvatar/experiments/primitives/akun_half.mp4/processed/images/frame_00000000.png"
+        ]
+
+        tgt_paths = [
+            "/p300/tpami/neuralAvatar/experiments/primitives/akun_half.mp4/processed/images/frame_00000200.png"
+        ]
+
+        # 1.1 load source images
+        src_imgs = []
+        for im_path in src_paths:
+            img = load_image(im_path, self.IMAGE_SIZE)
+            src_imgs.append(img)
+        src_imgs = np.stack(src_imgs, axis=0)
+        src_imgs = torch.tensor(src_imgs).float().to(self.device)
+
+        # 2.1 estimates smpls of source (cams, pose, shape)
+        src_hmr_imgs = F.interpolate(src_imgs, size=(224, 224), mode="bilinear", align_corners=True)
+        src_thetas = self.spin_runner.model(src_hmr_imgs)
+        src_infos = self.spin_runner.get_details(src_thetas)
+
+        f2verts, fim, wim = render.render_fim_wim(cam=src_infos["cam"], vertices=src_infos["verts"], smpl_faces=True)
+
+        for i, part_name in enumerate(render.body_parts):
+            fim = fim.clone()
+            part_face_ids = render.body_parts[part_name]
+            mapper = torch.zeros(render.nf + 1, 1, dtype=torch.long, device=self.device)
+            mapper[part_face_ids, 0] = 1
+
+            encode_map, _ = render.encode_fim(cam=src_infos["cam"], vertices=src_infos["verts"],
+                                              fim=fim, transpose=True, map_fn=mapper)
+
+            print(i, part_name, encode_map.shape)
+            visualizer.vis_named_img(part_name, encode_map)
+
+        fim_enc, _ = render.encode_fim(cam=src_infos["cam"], vertices=src_infos["verts"],
+                                       fim=fim, transpose=True)
+        visualizer.vis_named_img("all", fim_enc)
 
 
 if __name__ == '__main__':

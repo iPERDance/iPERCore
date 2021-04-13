@@ -22,7 +22,7 @@ class BaseOptions(object):
         self._parser.add_argument("--batch_size", type=int, default=1, help="input batch size")
         self._parser.add_argument("--time_step", type=int, default=1, help="time step size")
         self._parser.add_argument("--intervals", type=int, default=1, help="the interval between frames.")
-        self._parser.add_argument("--load_epoch", type=int, default=-1,
+        self._parser.add_argument("--load_iter", type=int, default=-1,
                                   help="which epoch to load? set to -1 to use latest cached model")
 
         self._parser.add_argument("--bg_ks", default=11, type=int, help="dilate kernel size of background mask.")
@@ -59,9 +59,10 @@ class BaseOptions(object):
         if not self._initialized:
             self.initialize()
 
-        opt = self._parser.parse_args()
+        # opt = self._parser.parse_args()
+        opt, extra_args = self._parser.parse_known_args()
         opt.is_train = self.is_train
 
-        cfg = setup(opt)
+        cfg = setup(opt, extra_args)
 
         return cfg

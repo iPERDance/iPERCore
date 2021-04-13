@@ -23,7 +23,7 @@ class TrainerTestCase(unittest.TestCase):
         opt.output_dir = "../tests/data"
         opt.verbose = True
         opt.temporal = False
-        opt.load_epoch = -1
+        opt.load_iter = -1
 
         cfg = setup(opt)
 

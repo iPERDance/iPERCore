@@ -230,7 +230,7 @@ class InputConcatGenerator(nn.Module):
 
         if ns > need_ns:
             src_inputs = src_inputs[:, 0:need_ns]
-        else:
+        elif ns < need_ns:
             need_pad_ns = need_ns - ns
 
             pad_src_inputs = []

@@ -44,7 +44,7 @@ class BaseModel(object):
         return self._name
 
     def load_network(self, network, network_label, epoch_label, need_module=False):
-        load_filename = "net_epoch_%s_id_%s.pth" % (epoch_label, network_label)
+        load_filename = "net_iter_%s_id_%s.pth" % (epoch_label, network_label)
         load_path = os.path.join(self._save_dir, load_filename)
 
         self.load_params(network, load_path, need_module)

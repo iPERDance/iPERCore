@@ -184,16 +184,8 @@ class PersonalizedDataset(VideoDataset):
 
         sample = self._transform(sample)
         sample["masks"] = torch.tensor(masks).float()
-        sample["offsets"] = torch.from_numpy(offsets.astype(np.float32, copy=False))
-
         sample["bg"] = torch.tensor(pseudo_bgs).float()
-
-        if links_ids is not None:
-            # repeats (number of linked verts, 2) to (ns + nt, number of linked verts, 2)
-            num_links = links_ids.shape[0]
-            links = np.zeros((offsets.shape[0], 3), dtype=np.int64)
-            links[0:num_links, 0:2] = links_ids
-            links[0:num_links, 2] = 1
-            sample["links_ids"] = torch.tensor(links).long()
+        sample["offsets"] = torch.from_numpy(offsets.astype(np.float32, copy=False))
+        sample["links_ids"] = torch.tensor(links_ids).long()
 
         return sample
