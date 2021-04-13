@@ -2,7 +2,7 @@
 
 ## System Dependencies
  - Linux (test on Ubuntu 16.04 and 18.04) or Windows (test on windows 10)
- - CUDA 10.1, 10.2, or 11.0 with Nvidia GPU.
+ - CUDA 10.1, 10.2, 11.0, or 11.1 with Nvidia GPU.
  - gcc in Linux (supports C++14 and tests on 7.5+ ) or MSVC++ (Visual Studio 2019, supports C++14) in Windows.
  - ffmpeg (ffprobe) test on 4.3.1+.
  - Git test on 2.16.2+
@@ -64,6 +64,11 @@ Install iPERCore by running the follows
 
 ```shell
 python setup.py develop
+```
+
+**If the GPU device is RTX30+ (RTX 3060, RTX 3060ti, RTX 3070, RTX 3080, RTX 3090 ...), run the follows **
+```shell
+torch=1.8.1 python setup.py develop
 ```
 
 It might takes 5-10 min. When you see `Finished processing dependencies for iPERCore==0.1.1` in the console screen, it means

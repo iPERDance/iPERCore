@@ -9,45 +9,58 @@ import sys
 import re
 
 TORCH_DIST = "https://download.pytorch.org/whl/torch_stable.html"
-MMCV_DIST = "https://download.openmmlab.com/mmcv/dist/index.html"
+MMCV_DIST = "https://download.openmmlab.com/mmcv/dist"
 
 PIP_VERSION = "20.2.4"
 
 PRECOMPILED_TORCH_CUDA_PAIRS = {
+    "1.8.1+cu102": {
+        "torch": "1.8.1+cu102",
+        "torchvision": "0.9.1+cu102",
+        # "mmcv-full": "1.3.0",
+        "mmcv-full": "1.2.0",
+        "mmcv-dist": f"{MMCV_DIST}/cu102/torch1.8.0/index.html"
+    },
+    "1.8.1+cu111": {
+        "torch": "1.8.1+cu111",
+        "torchvision": "0.9.1+cu111",
+        "mmcv-full": "1.2.0",
+        "mmcv-dist": f"{MMCV_DIST}/cu111/torch1.8.0/index.html"
+    },
     "1.7.0+cu110": {
         "torch": "1.7.0+cu110",
         "torchvision": "0.8.1+cu110",
-        "mmcv-full": "1.2.0+torch1.7.0+cu110"
+        "mmcv-full": "1.2.0",
+        "mmcv-dist": f"{MMCV_DIST}/cu110/torch1.7.0/index.html"
+        # "mmcv-full": "1.2.0+torch1.7.0+cu110"
     },
     "1.7.0+cu102": {
         "torch": "1.7.0",
         "torchvision": "0.8.1",
-        "mmcv-full": "1.2.0+torch1.7.0+cu102"
+        "mmcv-full": "1.2.0",
+        "mmcv-dist": f"{MMCV_DIST}/cu102/torch1.7.0/index.html"
+        # "mmcv-full": "1.2.0+torch1.7.0+cu102"
     },
     "1.7.0+cu101": {
         "torch": "1.7.0+cu101",
         "torchvision": "0.8.1+cu101",
-        "mmcv-full": "1.2.0+torch1.7.0+cu101"
+        "mmcv-full": "1.2.0",
+        "mmcv-dist": f"{MMCV_DIST}/cu101/torch1.7.0/index.html"
+        # "mmcv-full": "1.2.0+torch1.7.0+cu101"
     },
     "1.6.0+cu102": {
         "torch": "1.6.0",
         "torchvision": "0.7.0",
-        "mmcv-full": "1.1.5+torch1.6.0+cu102"
+        "mmcv-full": "1.2.0",
+        "mmcv-dist": f"{MMCV_DIST}/cu102/torch1.6.0/index.html"
+        # "mmcv-full": "1.1.5+torch1.6.0+cu102"
     },
     "1.6.0+cu101": {
         "torch": "1.6.0+cu101",
         "torchvision": "0.7.0+cu101",
-        "mmcv-full": "1.1.5+torch1.6.0+cu101"
-    },
-    "1.5.0+cu102": {
-        "torch": "1.5.0",
-        "torchvision": "0.6.0",
-        "mmcv-full": "1.2.0+torch1.5.0+cu102"
-    },
-    "1.5.0+cu101": {
-        "torch": "1.5.0+cu101",
-        "torchvision": "0.6.0+cu101",
-        "mmcv-full": "1.2.0+torch1.5.0+cu101"
+        "mmcv-full": "1.2.0",
+        "mmcv-dist": f"{MMCV_DIST}/cu101/torch1.6.0/index.html"
+        # "mmcv-full": "1.1.5+torch1.6.0+cu101"
     }
 }
 
@@ -55,12 +68,14 @@ WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS = {
     "1.6.0+cu102": {
         "torch": "https://download.pytorch.org/whl/cu102/torch-1.6.0-cp{PYTHON_VERSION}-cp{PYTHON_ABI_VERSION}-win_amd64.whl",
         "torchvision": "https://download.pytorch.org/whl/cu102/torchvision-0.7.0-cp{PYTHON_VERSION}-cp{PYTHON_ABI_VERSION}-win_amd64.whl",
-        "mmcv-full": "1.1.5+torch1.6.0+cu102"
+        "mmcv-full": "1.1.5",
+        "mmcv-dist": f"{MMCV_DIST}/cu102/torch1.6.0/index.html"
     },
     "1.6.0+cu101": {
         "torch": "https://download.pytorch.org/whl/cu101/torch-1.6.0%2Bcu101-cp{PYTHON_VERSION}-cp{PYTHON_ABI_VERSION}-win_amd64.whl",
         "torchvision": "https://download.pytorch.org/whl/cu101/torchvision-0.7.0%2Bcu101-cp{PYTHON_VERSION}-cp{PYTHON_ABI_VERSION}-win_amd64.whl",
-        "mmcv-full": "1.1.5+torch1.6.0+cu101"
+        "mmcv-full": "1.1.5",
+        "mmcv-dist": f"{MMCV_DIST}/cu101/torch1.6.0/index.html"
     }
 }
 
@@ -127,7 +142,7 @@ def platform_dependencies():
         List[List[str]]: list of setup requirements items.
 
     """
-    global TORCH_DIST, MMCV_DIST, PRECOMPILED_TORCH_CUDA_PAIRS, WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS
+    global TORCH_DIST, PRECOMPILED_TORCH_CUDA_PAIRS, WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS
 
     cuda_version = get_cuda_version()
     cuda_version_str = str(cuda_version).replace(".", "")
@@ -140,7 +155,8 @@ def platform_dependencies():
         if python_version != "38":
             python_abi_version += "m"
 
-        torch_cuda_version = f"1.6.0+cu{cuda_version_str}"
+        torch = os.environ.get(key="torch", default="1.6.0")
+        torch_cuda_version = f"{torch}+cu{cuda_version_str}"
         numpy_version = "numpy==1.19.3"
 
         assert torch_cuda_version in WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS, \
@@ -153,14 +169,16 @@ def platform_dependencies():
             .format(PYTHON_VERSION=python_version, PYTHON_ABI_VERSION=python_abi_version)
 
         mmcv_version = WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["mmcv-full"]
+        mmcv_dist = WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["mmcv-dist"]
 
         packages.append([f"{torch_link}", "-f", TORCH_DIST])
         packages.append([f"{torchvision_link}", "-f", TORCH_DIST])
-        packages.append([f"mmcv-full=={mmcv_version}", "-f", MMCV_DIST])
+        packages.append([f"mmcv-full=={mmcv_version}", "-f", mmcv_dist])
         packages.append(numpy_version)
 
     elif platform.system().lower() == "linux":
-        torch_cuda_version = f"1.7.0+cu{cuda_version_str}"
+        torch = os.environ.get(key="torch", default="1.7.0")
+        torch_cuda_version = f"{torch}+cu{cuda_version_str}"
         numpy_version = "numpy>=1.19.3"
 
         assert torch_cuda_version in PRECOMPILED_TORCH_CUDA_PAIRS, \
@@ -170,10 +188,11 @@ def platform_dependencies():
         torch_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torch"]
         torchvision_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torchvision"]
         mmcv_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["mmcv-full"]
+        mmcv_dist = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["mmcv-dist"]
 
         packages.append([f"torch=={torch_version}", "-f", TORCH_DIST])
         packages.append([f"torchvision=={torchvision_version}", "-f", TORCH_DIST])
-        packages.append([f"mmcv-full=={mmcv_version}", "-f", MMCV_DIST])
+        packages.append([f"mmcv-full=={mmcv_version}", "-f", mmcv_dist])
         packages.append(numpy_version)
 
     else:
@@ -291,6 +310,8 @@ setup(
     entry_points={
         "console_scripts": [
             "run_imitator = iPERCore.services.run_imitator:run_imitator",
+            "run_swapper = iPERCore.services.run_imitator:run_swapper",
+            "run_viewer = iPERCore.services.run_imitator:run_viewer",
         ]
     }
 )
