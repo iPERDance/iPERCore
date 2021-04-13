@@ -235,16 +235,16 @@ def read_src_infos(vid_infos, num_source, num_verts=6890):
         pad_ids = np.random.choice(src_ids, need_pad)
         src_ids += list(pad_ids)
 
-    if ft_ids[0] != valid_img_ids[0]:
+    old_front = valid_img_ids[0]
+    new_front = ft_ids[0]
+
+    if old_front != new_front:
         warnings.warn(f"the first image {valid_img_names[0]} is not the frontal wise image.")
 
-        old = valid_img_ids[0]
-        new = ft_ids[0]
-
         # swap `old` and `new`
-        valid_img_ids[new], valid_img_ids[old] = valid_img_ids[old], valid_img_ids[new]
-        valid_img_names[new], valid_img_names[old] = valid_img_names[old], valid_img_names[new]
-        smpls[new], smpls[old] = smpls[old], smpls[new]
+        valid_img_ids[new_front], valid_img_ids[old_front] = valid_img_ids[old_front], valid_img_ids[new_front]
+        valid_img_names[new_front], valid_img_names[old_front] = valid_img_names[old_front], valid_img_names[new_front]
+        smpls[new_front], smpls[old_front] = smpls[old_front], smpls[new_front]
 
     # # 4. load parsing info list
     alpha_paths = []
@@ -332,6 +332,8 @@ def read_src_infos(vid_infos, num_source, num_verts=6890):
         "replaced_paths": replaced_paths,
         "actual_bg_path": actual_bg_path,
         "num_source": num_source,
+        "old_front": old_front,
+        "new_front": new_front
     }
 
     return formated_vid_infos

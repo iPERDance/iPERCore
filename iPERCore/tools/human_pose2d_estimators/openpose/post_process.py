@@ -90,7 +90,7 @@ def linspace2d(start, stop, n=10):
 
 def extract_keypoints(heatmap, all_keypoints, total_keypoint_num):
     heatmap[heatmap < 0.1] = 0
-    heatmap_with_borders = np.pad(heatmap, [(2, 2), (2, 2)], mode='constant')
+    heatmap_with_borders = np.pad(heatmap, [(2, 2), (2, 2)], mode="constant")
     heatmap_center = heatmap_with_borders[1:heatmap_with_borders.shape[0] - 1, 1:heatmap_with_borders.shape[1] - 1]
     heatmap_left = heatmap_with_borders[1:heatmap_with_borders.shape[0] - 1, 2:heatmap_with_borders.shape[1]]
     heatmap_right = heatmap_with_borders[1:heatmap_with_borders.shape[0] - 1, 0:heatmap_with_borders.shape[1] - 2]
@@ -349,6 +349,7 @@ def infer_fast_post_process(net_outputs, PoseClass):
         # print(n, pose_keypoints)
         pose = PoseClass(pose_keypoints, pose_entries[n][-2])
         current_poses.append(pose)
+
 
     outputs = {
         "pose_entries": pose_entries,

@@ -99,6 +99,27 @@ ref_path_format = """the reference input information. All reference paths. It su
 """
 parser.add_argument("--ref_path", type=str, default="", help=ref_path_format)
 
+
+digital_type_format = """
+The digital type of a human 3d mesh is the combination of the basic type with the deformation types.
+The basic type is "smpl".
+The deformation types to compensate the basic type are "pifuhd", "cloth_link", "sil2offsets".
+1. "pifuhd" is that we firstly run the pifuHD to get the model-free mesh with details, and then register it to smpl,
+and we will arrive at an offsets.
+2. "cloth_link" is that we run a human parsing network to get the skirts mask, and then link the left-right legs 
+topological faces of the smpl based on the estimated skirts mask.
+3. "sil2offsets" is using the estimated human mask to tune the offsets of the smpl.
+
+For example, the  could be ["smpl", "smpl+pifuhd", "smpl+pifuhd+cloth_link", "smpl+cloth_link"],
+"+" is the separator among all types.
+"smpl+pifuhd+cloht_link" usually models the 3d human best, but it will take more time;
+the default is "smpl+cloth_link".
+"""
+parser.add_argument("--digital_type", type=str, default="smpl+cloth_link",
+                    choices=["smpl", "smpl+pifuhd", "smpl+pifuhd+cloth_link",
+                             "smpl+sil2offsets+cloth_link", "smpl+cloth_link"],
+                    help=digital_type_format)
+
 args = parser.parse_args()
 
 # symlink from the actual assets directory to this current directory

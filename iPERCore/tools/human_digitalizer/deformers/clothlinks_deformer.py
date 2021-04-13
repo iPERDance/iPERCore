@@ -12,14 +12,14 @@ from .link_utils import SmplLinker
 class ClothSmplLinkDeformer(object):
 
     def __init__(self,
-                 cloth_parse_ckpt_path="./assets/checkpoints/mattors/exp-schp-lip.pth",
+                 ckpt_path="./assets/checkpoints/mattors/exp-schp-lip.pth",
                  smpl_model="assets/checkpoints/pose3d/smpl_model.pkl",
                  part_path="assets/checkpoints/pose3d/smpl_part_info.json",
                  device=torch.device("cuda:0")):
 
         self.device = device
         self.smpl_link = SmplLinker(smpl_model=smpl_model, part_path=part_path, device=device)
-        self.cloth_parser = SchpMattor(restore_weight=cloth_parse_ckpt_path, device=device)
+        self.cloth_parser = SchpMattor(restore_weight=ckpt_path, device=device)
 
     def find_links(self, img_path, init_smpls):
         """

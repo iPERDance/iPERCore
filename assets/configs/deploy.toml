@@ -30,7 +30,14 @@ num_workers = 4
 ######################################### 1. Body Model ##############################################
 NUMBER_VERTS = 6890
 NUMBER_FACES = 13776
-digital_type = "cloth_smpl_link" # the type of digitalizing human 3D mesh, it could be ["smpl", "cloth_smpl_link", "sil2smpl"]
+# the basic type is "smpl",
+# the deformation types to compensate "smpl" are "pifuhd", "cloth_link", "sil2offsets"
+# the digital type of a human 3d mesh is the combination of the basic type with the deformation types,
+# for example, it could be ["smpl", "smpl+pifuhd", "smpl+pifuhd+cloth_link", "smpl+cloth_link"],
+# "+" is the separator among all types.
+# "smpl+pifuhd+cloht_link" usually models the 3d human best, but it will take more time;
+# the default is "smpl+cloth_link";
+digital_type = "smpl+cloth_link"
 smpl_model = "./assets/checkpoints/pose3d/smpl_model.pkl"
 smpl_model_hand = "./assets/checkpoints/pose3d/smpl_model_with_hand_v2.pkl"
 
@@ -42,6 +49,7 @@ map_name = "uv_seg"
 face_path = "./assets/checkpoints/pose3d/smpl_faces.npy"
 fim_enc_path = "./assets/checkpoints/pose3d/mapper_fim_enc.txt"
 uv_map_path = "./assets/checkpoints/pose3d/mapper_uv.txt"
+fit_pifuhd_path = "./assets/checkpoints/pose3d/mapper_for_fit_pifuhd.txt"
 part_path = "./assets/checkpoints/pose3d/smpl_part_info.json"
 front_path = "./assets/checkpoints/pose3d/front_body.json"
 head_path = "./assets/checkpoints/pose3d/head.json"
@@ -195,4 +203,14 @@ dilate_kernel_size = 9
 dilate_iter_num = 3
 
 [Preprocess.Deformer]
- cloth_parse_ckpt_path="./assets/checkpoints/mattors/exp-schp-lip.pth"
+cloth_parse_ckpt_path="./assets/checkpoints/mattors/exp-schp-lip.pth"
+
+[Preprocess.Deformer.cloth_link]
+ckpt_path="./assets/checkpoints/mattors/exp-schp-lip.pth"
+
+[Preprocess.Deformer.pifuhd]
+ckpt_path="./assets/checkpoints/pose3d/pifuhd.pt"
+total_iters=1000 # total iterations for pifuhd-to-smpl registeration
+
+
+

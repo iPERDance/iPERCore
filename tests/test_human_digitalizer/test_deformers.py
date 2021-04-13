@@ -82,7 +82,7 @@ class TestDeformers(unittest.TestCase):
         ref_smpl_pkl = "/p300/projects/iPERDance/experiments/primitives/Av37667655_2.mp4/processed/pose_shape.pkl"
 
         cloth_link = deformers.ClothSmplLinkDeformer(
-            cloth_parse_ckpt_path="./assets/checkpoints/mattors/exp-schp-lip.pth",
+            ckpt_path="./assets/checkpoints/mattors/exp-schp-lip.pth",
             smpl_model="assets/checkpoints/pose3d/smpl_model.pkl",
             part_path="assets/checkpoints/pose3d/smpl_part_info.json",
             device=device
