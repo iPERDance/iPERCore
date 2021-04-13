@@ -68,7 +68,7 @@ def visual_pose3d_results(save_video_path, img_dir, smpls_info, parse_dir=None,
 
         if has_kps:
             joints = all_keypoints[i]
-            image = draw_skeleton(image, joints, radius=6, transpose=False, threshold=0.0)
+            image = draw_skeleton(image, joints, radius=6, transpose=False, threshold=0.25)
 
         image = np.transpose(image, (2, 0, 1))
         image = image.astype(np.float) / 255

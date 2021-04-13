@@ -124,9 +124,6 @@ def set_envs(cfg):
     # parse the "4,5,8,9" (multi-gpu if used) to ["4", "5", "8", "9"]
     cfg.gpu_ids = cfg.gpu_ids.split(",")
 
-    # check the number of cores and set the num_workers <= cores
-    cfg.num_workers = min(cfg.num_workers, os.cpu_count())
-
     # set ffmpeg related flags
     os.environ["ffmpeg_vcodec"] = cfg.MultiMedia.ffmpeg.vcodec
     os.environ["ffmpeg_yuv420p"] = cfg.MultiMedia.ffmpeg.pix_fmt

@@ -7,4 +7,3 @@ tqdm>=4.48.2
 visdom>=0.1.8.9
 easydict>=1.9
 toml>=0.10.2
-trimesh>=3.9.1

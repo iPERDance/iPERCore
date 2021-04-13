@@ -12,14 +12,6 @@ from iPERCore.tools.utils.filesio.cv_utils import load_parse
 from iPERCore.services.options.process_info import ProcessInfo
 
 
-from iPERCore.tools.utils.visualizers.visdom_visualizer import VisdomVisualizer
-
-visualizer = VisdomVisualizer(
-    env="Sil2Deformer",
-    ip="http://10.10.10.100", port=31102
-)
-
-
 class PreprocessConsumer(Process):
     """
     Consumer for preprocessing, it contains the following steps:
@@ -100,14 +92,10 @@ class HumanDigitalDeformConsumer(Process):
     going to estimate the 3D mesh with more details.
     """
 
-    VALID_DEFORMATIONS = ["pifuhd", "sil2offsets", "cloth_link"]
-
-    def __init__(self, queue, gpu_id, opt, primary_type, end_deform=False):
+    def __init__(self, queue, gpu_id, opt):
         self.queue = queue
         self.gpu_id = gpu_id
         self.opt = opt
-        self.primary_type = primary_type
-        self.end_deform = end_deform
         self.is_run = True
 
         Process.__init__(self, name="HumanDigitalDeformConsumer_{}".format(gpu_id))
@@ -131,64 +119,37 @@ class HumanDigitalDeformConsumer(Process):
         os.environ["CUDA_DEVICES_ORDER"] = "PCI_BUS_ID"
         os.environ["CUDA_VISIBLE_DEVICES"] = str(self.gpu_id)
 
-        if self.primary_type == "pifuhd":
-            deformer = deformers.PifuHD2SMPLDeformer(
-                smpl_model=self.opt.smpl_model,
-                facial_path=self.opt.facial_path,
-                fit_pifuhd_path=self.opt.fit_pifuhd_path,
-                total_iters=self.opt.Preprocess.Deformer.pifuhd.total_iters,
-                ckpt_path=self.opt.Preprocess.Deformer.pifuhd.ckpt_path
-            )
+        digital_type = self.opt.digital_type
 
-        elif self.primary_type == "cloth_link":
+        if digital_type == "cloth_smpl_link":
             deformer = deformers.ClothSmplLinkDeformer(
-                ckpt_path=self.opt.Preprocess.Deformer.cloth_link.ckpt_path,
+                cloth_parse_ckpt_path=self.opt.Preprocess.Deformer.cloth_parse_ckpt_path,
                 smpl_model=self.opt.smpl_model,
                 part_path=self.opt.part_path
             )
-
-        elif self.primary_type == "sil2offsets":
-            deformer = None
-
         else:
-            raise ValueError(f"{self.primary_type} is not valid. "
-                             f"Currently, it only supports ['pifuhd', 'cloth_link', 'sil2offsets']")
+            deformer = None
 
         while self.is_run and not self.queue.empty():
             try:
                 process_info = self.queue.get()
 
-                if self.primary_type == "cloth_link":
-                    prepared_inputs = self.prepare_inputs_for_run_smpl_cloth_links(process_info)
+                if self.opt.digital_type == "cloth_smpl_link":
+                    prepared_inputs = self.prepare_inputs_for_run_cloth_smpl_links(process_info)
                     has_links, links = deformer.find_links(**prepared_inputs)
                     if has_links:
                         process_info["processed_deform"]["links"] = links
 
-                elif self.primary_type == "pifuhd":
-                    prepared_inputs = self.prepare_inputs_for_run_pifuhd_to_smpl(process_info)
-                    new_pose, offsets = deformer.deform(
-                        img_path=prepared_inputs["img_path"],
-                        output_dir=prepared_inputs["output_dir"],
-                        init_smpls=prepared_inputs["init_smpls"]
-                    )
-
-                    old_front = prepared_inputs["old_front"]
-                    process_info["processed_pose3d"]["pose"][old_front] = new_pose[0]
-                    process_info["processed_deform"]["offsets"] = offsets
-
-                elif self.primary_type == "sil2offsets":
+                elif self.opt.digital_type == "sil2smpl":
                     prepared_inputs = self.prepare_inputs_for_run_sil2smpl_offsets(process_info)
-                    offsets, new_smpl = deformers.run_sil2smpl_offsets(**prepared_inputs)
+                    offsets = deformers.run_sil2smpl_offsets(**prepared_inputs)
 
                     process_info["processed_deform"]["offsets"] = offsets
-                    process_info["processed_pose3d"]["pose"] = new_smpl[:, 3:-10]
-                    process_info["processed_pose3d"]["shape"] = new_smpl[:, -10:]
 
                 else:
                     raise ValueError("there is no digital type of {}".format(self.opt.digital_type))
 
-                if self.end_deform:
-                    process_info["has_run_deform"] = True
+                process_info["has_run_deform"] = True
                 process_info.serialize()
 
             except Exception("model error!") as e:
@@ -211,35 +172,29 @@ class HumanDigitalDeformConsumer(Process):
                 --init_smpls (np.ndarray): (number of source, 85).
         """
 
-        sil_size = 512
-
         # 1. load the processed information by PreprocessConsumer
-        num_source = min(process_info.num_sources(), self.opt.num_source)
-        src_infos = process_info.convert_to_src_info(num_source)
+        src_infos = process_info.convert_to_src_info(self.opt.num_source)
 
         src_ids = src_infos["src_ids"]
         src_smpls = src_infos["smpls"][src_ids]
-        # alpha_paths = src_infos["alpha_paths"]
-        alpha_paths = src_infos["mask_paths"]
+        alpha_paths = src_infos["alpha_paths"]
 
         masks = []
 
         for i in src_ids:
             parse_path = alpha_paths[i]
-            mask = load_parse(parse_path, sil_size)
+            mask = load_parse(parse_path, self.opt.image_size)
 
             masks.append(mask)
 
         prepared_info = {
             "obs_sils": np.stack(masks, axis=0),
             "init_smpls": src_smpls,
-            "image_size": sil_size,
-            "visualizer": visualizer
         }
 
         return prepared_info
 
-    def prepare_inputs_for_run_smpl_cloth_links(self, process_info):
+    def prepare_inputs_for_run_cloth_smpl_links(self, process_info):
         """
             Prepare the inputs for human_digitalizer.ClothSmplLinkDeformer().find_links().
             It will return a dict, contains the keys of img_path, output_dir, init_smpls;
@@ -249,37 +204,8 @@ class HumanDigitalDeformConsumer(Process):
 
         Returns:
             prepared_info (dict): the prepared information, which contains:
-                --img_path (str): the image path;
-                --init_smpls (np.ndarray): (1, 85), the initialized smpl parameters.
-        """
-
-        # 1. load the processed information by PreprocessConsumer
-        src_infos = process_info.convert_to_src_info(self.opt.num_source)
-
-        # 2. prepare the inputs information, here '0' is always the frontal image.
-        img_path = os.path.join(src_infos["img_dir"], src_infos["images"][0])
-        init_smpls = src_infos["smpls"][0:1]
-
-        prepared_info = {
-            "img_path": img_path,
-            "init_smpls": init_smpls
-        }
-        return prepared_info
-
-    def prepare_inputs_for_run_pifuhd_to_smpl(self, process_info):
-        """
-            Prepare the inputs for human_digitalizer.PifuHD2SMPLDeformer().deform().
-            It will return a dict, contains the keys of img_path, output_dir, init_smpls;
-
-        Args:
-            process_info (ProcessInfo):
-
-        Returns:
-            prepared_info (dict): the prepared information, which contains:
-                --img_path (str): the image path;
-                --init_smpls (np.ndarray): (1, 85), the initialized smpl parameters.
-                --new_front (int):
-                --old_front (int):
+                --obs_sils (np.ndarray): (number of source, 1, image_size, image_size) is in the range [0, 1];
+                --init_smpls (np.ndarray): (number of source, 85).
         """
 
         # 1. load the processed information by PreprocessConsumer
@@ -291,10 +217,7 @@ class HumanDigitalDeformConsumer(Process):
 
         prepared_info = {
             "img_path": img_path,
-            "output_dir": process_info["input_info"]["processed_dir"],
-            "init_smpls": init_smpls,
-            "new_front": src_infos["new_front"],
-            "old_front": src_infos["old_front"]
+            "init_smpls": init_smpls
         }
         return prepared_info
 
@@ -319,7 +242,7 @@ def human_estimate(opt) -> None:
     all_meta_proc = meta_src_proc + meta_ref_proc
 
     for i, meta_proc in enumerate(all_meta_proc):
-        # print(meta_proc)
+        print(meta_proc)
 
         # check it is reference
         is_ref = (i >= num_src)
@@ -349,72 +272,23 @@ def human_estimate(opt) -> None:
             consumer.join()
 
 
-# def digital_deform(opt) -> None:
-#     """
-#         Digitalizing the source images.
-#     Args:
-#         opt:
-#
-#     Returns:
-#         None
-#     """
-#
-#     print("\t\tPre-processing: digital deformation start...")
-#
-#     que = Queue()
-#     need_to_process = 0
-#
-#     meta_src_proc = opt.meta_data["meta_src"]
-#     for i, meta_proc in enumerate(meta_src_proc):
-#
-#         processed_info = ProcessInfo(meta_proc)
-#         processed_info.deserialize()
-#
-#         if not HumanDigitalDeformConsumer.check_has_been_deformed(processed_info):
-#             que.put(processed_info)
-#             need_to_process += 1
-#
-#     if need_to_process > 0:
-#         MAX_PER_GPU_PROCESS = opt.Preprocess.MAX_PER_GPU_PROCESS
-#         per_gpu_process = int(np.floor(need_to_process / len(opt.gpu_ids)))
-#         used_gpus = opt.gpu_ids * min(MAX_PER_GPU_PROCESS, per_gpu_process)
-#
-#         consumers = []
-#         for gpu_id in used_gpus:
-#             consumer = HumanDigitalDeformConsumer(que, gpu_id, opt)
-#             consumers.append(consumer)
-#
-#         # all processors start
-#         for consumer in consumers:
-#             consumer.start()
-#
-#         # all processors join
-#         for consumer in consumers:
-#             consumer.join()
-#
-#     print("\t\tPre-processing: digital deformation completed...")
-
-
-def digital_deform_sub_type(opt, primary_type="cloth_link", end_deform=False) -> None:
+def digital_deform(opt) -> None:
     """
-
+        Digitalizing the source images.
     Args:
         opt:
-        primary_type (str): the primary type of digital deformation.
-            It could be "pifuhd", "cloth_link", and "sil2offsets".
-
-        end_deform (bool): whether this primary type is the last deformation type.
 
     Returns:
         None
     """
 
-    print(f"\t\tPre-processing: digital primary deformation: running {primary_type}...")
+    print("\t\tPre-processing: digital deformation start...")
 
     que = Queue()
     need_to_process = 0
 
     meta_src_proc = opt.meta_data["meta_src"]
+
     for i, meta_proc in enumerate(meta_src_proc):
 
         processed_info = ProcessInfo(meta_proc)
@@ -431,7 +305,7 @@ def digital_deform_sub_type(opt, primary_type="cloth_link", end_deform=False) ->
 
         consumers = []
         for gpu_id in used_gpus:
-            consumer = HumanDigitalDeformConsumer(que, gpu_id, opt, primary_type, end_deform)
+            consumer = HumanDigitalDeformConsumer(que, gpu_id, opt)
             consumers.append(consumer)
 
         # all processors start
@@ -441,35 +315,6 @@ def digital_deform_sub_type(opt, primary_type="cloth_link", end_deform=False) ->
         # all processors join
         for consumer in consumers:
             consumer.join()
-
-    print(f"\t\tPre-processing: digital primary deformation: running {primary_type} successfully...")
-
-
-def digital_deform(opt) -> None:
-
-    print("\t\tPre-processing: digital deformation start...")
-
-    VALID_DEFORMATIONS = ["pifuhd", "sil2offsets", "cloth_link"]
-
-    # for example, digital_type is "smpl+pifuhd+cloth_link". Using "+" as the separator.
-    digital_type = opt.digital_type
-
-    # parse it to set
-    primary_digital_types = set()
-    for primary_type in digital_type.split("+"):
-        if primary_type == "smpl":
-            continue
-        primary_digital_types.add(primary_type)
-
-    # here, primary_digital_types will be ["pifuhd", "cloth_link"]
-    for i, primary_type in enumerate(VALID_DEFORMATIONS):
-        if primary_type not in primary_digital_types:
-            continue
-
-        end_deform = (i == len(VALID_DEFORMATIONS) - 1)
-
-        print(i, primary_type, end_deform)
-        digital_deform_sub_type(opt, primary_type, end_deform)
 
     print("\t\tPre-processing: digital deformation completed...")
 

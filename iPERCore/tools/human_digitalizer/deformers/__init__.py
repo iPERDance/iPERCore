@@ -4,11 +4,10 @@ import torch
 
 from .sil_deformer import SilhouetteDeformer
 from .clothlinks_deformer import ClothSmplLinkDeformer
-from .pifuhd2smpl_deformer import PifuHD2SMPLDeformer
 
 
 def run_sil2smpl_offsets(obs_sils, init_smpls, image_size, device=torch.device("cuda:0"),
-                         visualizer=None):
+                         visualizer=None, visual_poses=None):
     """
 
     Args:
@@ -17,6 +16,7 @@ def run_sil2smpl_offsets(obs_sils, init_smpls, image_size, device=torch.device("
         image_size (int):
         device (torch.device):
         visualizer (None or Visualizer):
+        visual_poses (None or np.ndarray):
 
     Returns:
 
@@ -37,8 +37,6 @@ def run_sil2smpl_offsets(obs_sils, init_smpls, image_size, device=torch.device("
     }
 
     # 3. solve the offsets
-    offsets, new_smpl = deform_solver.solve(obs, visualizer)
-    offsets = offsets.cpu().detach().numpy()
-    new_smpl = new_smpl.cpu().detach().numpy()
+    offsets = deform_solver.solve(obs, visualizer, visual_poses).cpu().detach().numpy()
 
-    return offsets, new_smpl
+    return offsets
