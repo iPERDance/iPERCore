@@ -13,19 +13,47 @@ MMCV_DIST = "https://download.openmmlab.com/mmcv/dist"
 
 PIP_VERSION = "20.2.4"
 
+
+#                        cuda
+# torch 1.8.1       +cu101     +cu102      +cu111
+# torch 1.8.0       +cu101      cu102      +cu111
+# torch 1.7.1       +cu101      cu102      +cu110
+# torch 1.7.0       +cu101      cu102      +cu110
+# torch 1.6.0       +cu101      cu102
+
+VALID_CUDA = [10.1, 10.2, 11.0, 11.1]
+
+DEFAULT_LINUX_CUDA_TORCH = {
+    "cu111": "1.8.1",
+    "cu110": "1.7.0",
+    "cu102": "1.7.0",
+    "cu101": "1.7.0"
+}
+
+DEFAULT_WINDOWS_CUDA_TORCH = {
+    "cu102": "1.6.0",
+    "cu101": "1.6.0"
+}
+
+
 PRECOMPILED_TORCH_CUDA_PAIRS = {
-    "1.8.1+cu102": {
-        "torch": "1.8.1+cu102",
-        "torchvision": "0.9.1+cu102",
-        # "mmcv-full": "1.3.0",
-        "mmcv-full": "1.2.0",
-        "mmcv-dist": f"{MMCV_DIST}/cu102/torch1.8.0/index.html"
-    },
     "1.8.1+cu111": {
         "torch": "1.8.1+cu111",
         "torchvision": "0.9.1+cu111",
         "mmcv-full": "1.2.0",
-        "mmcv-dist": f"{MMCV_DIST}/cu111/torch1.8.0/index.html"
+        "mmcv-dist": f"{MMCV_DIST}/cu111/torch1.8.1/index.html"
+    },
+    "1.8.1+cu102": {
+        "torch": "1.8.1+cu102",
+        "torchvision": "0.9.1+cu102",
+        "mmcv-full": "1.2.0",
+        "mmcv-dist": f"{MMCV_DIST}/cu102/torch1.8.1/index.html"
+    },
+    "1.8.1+cu101": {
+        "torch": "1.8.1+cu101",
+        "torchvision": "0.9.1+cu101",
+        "mmcv-full": "1.2.0",
+        "mmcv-dist": f"{MMCV_DIST}/cu101/torch1.8.1/index.html"
     },
     "1.7.0+cu110": {
         "torch": "1.7.0+cu110",
@@ -88,6 +116,7 @@ def get_cuda_version() -> float:
         version (float): the cuda version.
 
     """
+    global VALID_CUDA
 
     # In windows, the cuda_install.exe will set the `CUDA_PATH` to the system environmental variables.
     if "CUDA_HOME" not in os.environ and "CUDA_PATH" in os.environ:
@@ -124,9 +153,12 @@ def get_cuda_version() -> float:
         if len(nvcc_cuda) == 0:
             raise RuntimeError(f"nvcc -V error! {nvcc_str}")
         else:
-            version = nvcc_cuda[0]
+            version = float(nvcc_cuda[0])
 
-    assert version >= 10.1, f"CUDA Version {version} <= 10.1. Please manually install the CUDA >= 10.1"
+    assert version in VALID_CUDA, f"CUDA Version {version} must in {VALID_CUDA}. " \
+                                  f"Please manually install the CUDA meets the requirements."
+
+    print(f"Cuda version is {version}")
 
     return version
 
@@ -146,6 +178,37 @@ def get_python_version() -> str:
     return version
 
 
+def get_torch_version(cuda_version_str, precompile_torch_cuda_paris, default_torch_cuda_mapper) -> str:
+    """
+
+    Args:
+        cuda_version_str:
+        precompile_torch_cuda_paris (dict): PRECOMPILED_TORCH_CUDA_PAIRS or WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS
+        default_torch_cuda_mapper (dict): DEFAULT_LINUX_CUDA_TORCH or DEFAULT_WINDOWS_CUDA_TORCH
+
+    Returns:
+        torch_version (str):
+    """
+
+    if "torch" in os.environ:
+        attempt_torch_version_str = os.environ["torch"]
+        torch_cuda_str = f"{attempt_torch_version_str}+{cuda_version_str}"
+
+        if torch_cuda_str not in precompile_torch_cuda_paris:
+            torch_version_str = default_torch_cuda_mapper[cuda_version_str]
+            print(f"torch=={attempt_torch_version_str} is incompatible with cuda {cuda_version_str}. "
+                  f"The compatible torch-cuda version are {precompile_torch_cuda_paris.keys()},"
+                  f"and here we install the torch+cuda=={torch_version_str} + {cuda_version_str}.")
+
+        else:
+            torch_version_str = attempt_torch_version_str
+
+    else:
+        torch_version_str = default_torch_cuda_mapper[cuda_version_str]
+
+    return torch_version_str
+
+
 def platform_dependencies():
     """Parse the pre-complied consistent versions of torch, torchvision, mmcv, and CUDA.
     The torch version must >= 1.6.0, and the CUDA version must >= 10.1.
@@ -157,10 +220,11 @@ def platform_dependencies():
         List[List[str]]: list of setup requirements items.
 
     """
-    global TORCH_DIST, PRECOMPILED_TORCH_CUDA_PAIRS, WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS
+    global TORCH_DIST, PRECOMPILED_TORCH_CUDA_PAIRS, WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS, \
+        DEFAULT_LINUX_CUDA_TORCH, DEFAULT_WINDOWS_CUDA_TORCH
 
     cuda_version = get_cuda_version()
-    cuda_version_str = str(cuda_version).replace(".", "")
+    cuda_version_str = "cu" + str(cuda_version).replace(".", "")
 
     packages = []
 
@@ -170,8 +234,8 @@ def platform_dependencies():
         if python_version != "38":
             python_abi_version += "m"
 
-        torch = os.environ.get(key="torch", default="1.6.0")
-        torch_cuda_version = f"{torch}+cu{cuda_version_str}"
+        torch = get_torch_version(cuda_version_str, WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS, DEFAULT_WINDOWS_CUDA_TORCH)
+        torch_cuda_version = f"{torch}+{cuda_version_str}"
         numpy_version = "numpy==1.19.3"
 
         assert torch_cuda_version in WINDOWS_PRECOMPILED_TORCH_CUDA_PAIRS, \
@@ -192,13 +256,13 @@ def platform_dependencies():
         packages.append(numpy_version)
 
     elif platform.system().lower() == "linux":
-        torch = os.environ.get(key="torch", default="1.7.0")
-        torch_cuda_version = f"{torch}+cu{cuda_version_str}"
+        torch = get_torch_version(cuda_version_str, PRECOMPILED_TORCH_CUDA_PAIRS, DEFAULT_LINUX_CUDA_TORCH)
+        torch_cuda_version = f"{torch}+{cuda_version_str}"
         numpy_version = "numpy>=1.19.3"
 
         assert torch_cuda_version in PRECOMPILED_TORCH_CUDA_PAIRS, \
-            f"There is no pre-complied pytorch 1.7.0 with CUDA {cuda_version}, " \
-            f"and you might need to install pytorch 1.7.0 with CUDA {cuda_version} from source."
+            f"There is no pre-complied pytorch {torch} with CUDA {cuda_version} in {TORCH_DIST}, " \
+            f"and you might need to install pytorch {torch} with CUDA {cuda_version} from source."
 
         torch_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torch"]
         torchvision_version = PRECOMPILED_TORCH_CUDA_PAIRS[torch_cuda_version]["torchvision"]
