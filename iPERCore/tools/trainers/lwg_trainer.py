@@ -11,7 +11,7 @@ from iPERCore.tools.utils.filesio.cv_utils import tensor2im
 
 from .base import BaseTrainerModel, FlowCompositionForTrainer
 
-__all__ = ["LWGTrainer", "LWGAugBGTrainer", "LWGFrontTrainer"]
+__all__ = ["LWGTrainerABC", "LWGTrainer", "LWGAugBGTrainer", "LWGFrontTrainer"]
 
 
 class LWGTrainerABC(BaseTrainerModel, abc.ABC):
@@ -92,7 +92,7 @@ class LWGTrainerABC(BaseTrainerModel, abc.ABC):
         self._init_losses()
 
         # load networks and optimizers
-        if self._opt.load_epoch > 0:
+        if self._opt.load_iter > 0:
             self.load()
         else:
             if self._opt.load_path_G != "None":
@@ -242,17 +242,17 @@ class LWGTrainerABC(BaseTrainerModel, abc.ABC):
         visuals["0_source"] = self._vis_source
         visuals["1_uv_img"] = self._vis_uv_img
         visuals["2_real_img"] = self._vis_real
-        visuals["4_fake_src"] = self._vis_fake_src
-        visuals["5_fake_tsf"] = self._vis_fake_tsf
-        visuals["6_fake_bg"] = self._vis_fake_bg
-        visuals["7_fake_mask"] = self._vis_mask
-        visuals["8_body_mask"] = self._vis_body_mask
+        visuals["3_fake_src"] = self._vis_fake_src
+        visuals["4_fake_tsf"] = self._vis_fake_tsf
+        visuals["5_fake_bg"] = self._vis_fake_bg
+        visuals["6_fake_mask"] = self._vis_mask
+        visuals["7_body_mask"] = self._vis_body_mask
 
-        # visuals["9_warp_img"] = self._vis_warp
-        # visuals["10_src_warp"] = self._vis_src_warp
-        # visuals["11_src_ft"] = self._vis_src_ft
+        # visuals["8_warp_img"] = self._vis_warp
+        # visuals["9_src_warp"] = self._vis_src_warp
+        # visuals["10_src_ft"] = self._vis_src_ft
         # if self._opt.temporal:
-        #     visuals["12_temp_warp"] = self._vis_temp_warp
+        #     visuals["11_temp_warp"] = self._vis_temp_warp
 
         return visuals
 
@@ -296,20 +296,20 @@ class LWGTrainerABC(BaseTrainerModel, abc.ABC):
             self.save_optimizer(self._optimizer_D, "D", label)
 
     def load(self):
-        load_epoch = self._opt.load_epoch
+        load_iter = self._opt.load_iter
 
         # load G
-        self.load_network(self.G, "G", load_epoch, need_module=False)
+        self.load_network(self.G, "G", load_iter, need_module=False)
 
         if self._use_gan:
             # load D
-            self.load_network(self.D, "D", load_epoch, need_module=False)
+            self.load_network(self.D, "D", load_iter, need_module=False)
 
     def update_learning_rate(self):
         # updated learning rate G
-        final_lr = self._opt.final_lr
+        final_lr = self._train_opts.final_lr
 
-        lr_decay_G = (self._opt.lr_G - final_lr) / self._opt.nepochs_decay
+        lr_decay_G = (self._train_opts.lr_G - final_lr) / self._train_opts.niters_or_epochs_decay
         self._current_lr_G -= lr_decay_G
         for param_group in self._optimizer_G.param_groups:
             param_group["lr"] = self._current_lr_G
@@ -317,7 +317,7 @@ class LWGTrainerABC(BaseTrainerModel, abc.ABC):
 
         if self._use_gan:
             # update learning rate D
-            lr_decay_D = (self._opt.lr_D - final_lr) / self._opt.nepochs_decay
+            lr_decay_D = (self._train_opts.lr_D - final_lr) / self._train_opts.niters_or_epochs_decay
             self._current_lr_D -= lr_decay_D
             for param_group in self._optimizer_D.param_groups:
                 param_group["lr"] = self._current_lr_D
@@ -402,7 +402,7 @@ class LWGAugBGTrainer(LWGTrainerABC):
             aug_bg = inputs["bg"].to(device, non_blocking=True)
             smpls = inputs["smpls"].to(device, non_blocking=True)
             masks = inputs["masks"].to(device, non_blocking=True)
-            offsets = inputs["offsets"].to(device, non_blocking=True)
+            offsets = inputs["offsets"].to(device, non_blocking=True) if "offsets" in inputs else 0
             links_ids = inputs["links_ids"].to(device, non_blocking=True) if "links_ids" in inputs else None
 
             ns = self._ns

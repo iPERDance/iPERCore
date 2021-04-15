@@ -281,7 +281,7 @@ def batch_quat_rotation(theta_quat):
 
 
 class SMPL(BaseSMPL):
-    def __init__(self, model_path="./assets/pretrains/smpl_model.pkl", rotate=False):
+    def __init__(self, model_path="./assets/checkpoints/pose3d/smpl_model.pkl", rotate=False):
         """
         pkl_path is the path to a SMPL model
         """

@@ -1,0 +1,203 @@
+######################################### 0. Base Info ###############################################
+gpu_ids = "0"     # GPU setups
+local_rank = 0  # DDP if uses, otherwise ignore it
+use_cudnn = false
+
+image_size = 512   # the image size.
+num_source = 2     # fix the number of sources.
+MAX_NUM_SOURCE = 8 # The max number of source images for query operation in the attention module.
+time_step = 1      # the time step for temporal attention.
+share_bg = true    # whether share background or not, if not, then all images need to use inpainting.
+bg_ks = 11
+ft_ks = 1
+use_inpaintor = false  # use addtional background inpaintor or not.
+
+# dataset
+batch_size = 1
+intervals = 1
+serial_batches = false
+
+# visualization
+verbose = true
+tb_visual = false
+ip = ""
+port = 0
+
+# Set the number of cores for Image Cropper, and 3D-Pose Estimation.
+# If num_workers is 0, then we will not use multi-processing.
+num_workers = 4
+
+######################################### 1. Body Model ##############################################
+NUMBER_VERTS = 6890
+NUMBER_FACES = 13776
+digital_type = "cloth_smpl_link" # the type of digitalizing human 3D mesh, it could be ["smpl", "cloth_smpl_link", "sil2smpl"]
+smpl_model = "./assets/checkpoints/pose3d/smpl_model.pkl"
+smpl_model_hand = "./assets/checkpoints/pose3d/smpl_model_with_hand_v2.pkl"
+
+###################################### 2. FlowComposition ############################################
+tex_size = 3
+only_vis = false
+temporal = false
+conf_erode_ks = 3
+#out_dilate_ks = 51    # decrease this might need less GPU Memory size.
+out_dilate_ks = 9    # In the training set set this as a small value.
+
+map_name = "uv_seg"
+face_path = "./assets/checkpoints/pose3d/smpl_faces.npy"
+fim_enc_path = "./assets/configs/pose3d/mapper_fim_enc.txt"
+uv_map_path = "./assets/configs/pose3d/mapper_uv.txt"
+part_path = "./assets/configs/pose3d/smpl_part_info.json"
+front_path = "./assets/configs/pose3d/front_body.json"
+head_path = "./assets/configs/pose3d/head.json"
+facial_path = "./assets/configs/pose3d/front_facial.json"
+
+# the strategy to control the camera pameters (s, cx, cy) between the source and reference image.
+# It could be ["smooth", "source", "copy", "ref_txty"]
+cam_strategy = "smooth"
+
+###################### 3. LiquidWarping GAN, generator and discriminator #############################
+train_name = "LWGTrainer"
+gen_name = "AttLWB-SPADE"
+dis_name = "patch_global"
+
+# detials of the network architecture, it contains the configurations of the generator and the discriminator.
+neural_render_cfg_path = "./assets/configs/neural_renders/AttLWB-SPADE.toml"
+#load_path_G = "./assets/checkpoints/neural_renders/AttLWB-SPADE_id_G_2020-05-18.pth"
+load_path_G = "/p300/tpami/checkpoints/models/iPER+MS+FashionVideo+Place2/net_iter_2_id_G.pth"
+load_path_D = "None"
+load_iter = -1
+
+[Train]
+# visualization
+num_iters_validate = 1
+tb_visual = false
+#    print_freq_s = 180
+#    display_freq_s = 600
+#    save_latest_freq_s = 21600
+
+print_freq_s = 30
+display_freq_s = 30
+save_latest_freq_s = 300
+
+# loss
+use_face = true
+face_factor = 1.0
+face_loss_path = "./assets/checkpoints/losses/sphere20a_20171020.pth"
+
+use_vgg = "VGG19"
+vgg_loss_path = "./assets/checkpoints/losses/vgg19-dcbb9e9d.pth"
+
+lambda_rec = 10.0
+lambda_tsf = 10.0
+lambda_face = 5.0
+lambda_mask = 5.0
+lambda_mask_smooth = 1.0
+lambda_D_prob = 1.0
+
+opti = "Adam"
+train_G_every_n_iterations = 1
+G_adam_b1 = 0.9
+G_adam_b2 = 0.999
+D_adam_b1 = 0.9
+D_adam_b2 = 0.999
+
+lr_G = 0.0001
+lr_D = 0.0001
+final_lr = 0.000002
+niters_or_epochs_no_decay = 100   # fixing learning rate at the first niters_or_epochs_no_decay
+niters_or_epochs_decay = 0        # then, decreasing the learning rate
+aug_bg = false      # background
+
+[MultiMedia]
+# The configuration of multi-media,
+# including the parameters of ffmpeg, the number of pool_size for cv2.VideoWrite.
+[MultiMedia.ffmpeg]
+vcodec = "h264"
+#vcodec = "libx264"
+pix_fmt = "yuv420p"
+
+[MultiMedia.ffmpeg.Windows]
+ffmpeg_exe_path = "./assets/executables/ffmpeg-4.3.1-win64-static/bin/ffmpeg.exe"
+ffprobe_exe_path = "./assets/executables/ffmpeg-4.3.1-win64-static/bin/ffprobe.exe"
+
+[MultiMedia.ffmpeg.Linux]
+ffmpeg_exe_path = "ffmpeg"
+ffprobe_exe_path = "ffprobe"
+
+[MultiMedia.image]
+saved_name_format = "pred_{:0>8}.png"
+caption = "this is a fake video, synthesized by impersonator++"
+
+[Preprocess]
+## The configuration of Preprocessing.
+
+# Set the max number of Preprocessor Instance for each GPU.
+MAX_PER_GPU_PROCESS = 1
+
+has_detector = true
+
+# Filter the invalid 2D kps.
+filter_invalid = true
+
+# 2D and 3D pose temporal smoooth.
+temporal = true
+
+# estiamte_boxes_first
+estimate_boxes_first = true
+
+# use smplify to refiner the pose3d or not.
+use_smplify = true
+
+[Preprocess.Cropper]
+# The configurations of Image Cropper
+src_crop_factor = 0.0
+ref_crop_factor = 3.0
+
+[Preprocess.Tracker]
+# The configurations of Human Tracker, currently, it only supports the most naive `max_box` tracker，
+# which chooses the large bounding-box of each image.
+tracker_name = "max_box"
+
+[Preprocess.Pose2dEstimator]
+# The configurations of Human 2D Pose Estimation, currently, it only supports the `openpose` estimator.
+name = "openpose"
+joint_type = "OpenPose-Body-25"
+cfg_path = "./assets/configs/pose2d/openpose/body25.toml"
+
+[Preprocess.Pose3dEstimator]
+# The configurations of Human 3D Pose Estimation, currently, it only supports the `spin` estimator.
+name = "spin"
+cfg_path = "./assets/configs/pose3d/spin.toml"
+batch_size = 32
+num_workers = 4
+
+[Preprocess.Pose3dRefiner]
+name = "smplify"
+cfg_path = "./assets/configs/pose3d/smplify.toml"
+use_lfbgs = true
+
+[Preprocess.FrontInfo]
+NUM_CANDIDATE = 25
+RENDER_SIZE = 256
+
+[Preprocess.HumanMattors]
+# The configurations of HumanMattors.
+name = "point_render+gca"
+cfg_path = "./assets/configs/mattors/point_render+gca.toml"
+
+morph_kernel_size = 3
+erode_iter_num = 2
+dilate_iter_num = 7
+
+[Preprocess.BackgroundInpaintor]
+# The configurations of BackgroundInpaintor.
+name = "mmedit_inpainting"
+cfg_path = "./assets/configs/inpaintors/mmedit_inpainting.toml"
+
+use_sr = true
+bg_replace = true
+dilate_kernel_size = 9
+dilate_iter_num = 3
+
+[Preprocess.Deformer]
+ cloth_parse_ckpt_path="./assets/checkpoints/mattors/exp-schp-lip.pth"

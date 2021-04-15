@@ -384,7 +384,7 @@ class FaceLoss(nn.Module):
     def crop_head_bbox(self, imgs, bboxs):
         """
         Args:
-            bboxs: (N, 4), 4 = [lt_x, lt_y, rt_x, rt_y]
+            bboxs: (N, 4), 4 = [min_x, max_x, min_y, max_y]
 
         Returns:
             resize_image:
@@ -407,10 +407,15 @@ class FaceLoss(nn.Module):
 
     def crop_head_kps(self, imgs, kps):
         """
-        :param imgs: (N, C, H, W)
-        :param kps: (N, 19, 2)
-        :return:
+
+        Args:
+            imgs (torch.Tensor): (N, C, H, W)
+            kps (torch.Tensor): (N, 19, 2)
+
+        Returns:
+
         """
+        
         bs, _, ori_h, ori_w = imgs.shape
 
         rects = self.find_head_rect(kps, ori_h, ori_w)

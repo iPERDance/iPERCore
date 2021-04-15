@@ -70,12 +70,12 @@ class SmplLinker(object):
         self.smpl = SMPL(model_path=self.smpl_model_path).to(device)
 
         with open(self.part_path, 'r') as f:
-            # dict_keys(['00_head', '01_body', '02_left_arm', '03_right_arm', '04_left_leg',
-            #            '05_right_leg', '06_left_foot', '07_right_foot', '08_left_hand', '09_right_hand'])
+            # dict_keys(['00_head', '01_torso', '02_left_leg', '03_right_leg', '04_left_arm',
+            #            '05_right_arm', '06_left_foot', '07_right_foot', '08_left_hand', '09_right_hand'])
             self.smpl_part_info = json.load(f)
 
-        self.right_leg_verts_idx = np.array(self.smpl_part_info['03_right_arm']['vertex'])
-        self.left_leg_verts_idx = np.array(self.smpl_part_info['02_left_arm']['vertex'])
+        self.right_leg_verts_idx = np.array(self.smpl_part_info['03_right_leg']['vertex'])
+        self.left_leg_verts_idx = np.array(self.smpl_part_info['04_left_arm']['vertex'])
 
         self.right_leg_inner_verts_idx = self.get_inner_verts_idx_of_leg(self.right_leg_verts_idx, inner_part_rate=0.3,
                                                                          right=True)

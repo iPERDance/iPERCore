@@ -1,0 +1,30 @@
+[Generator]
+# the configuration of the generator, since the generator contains the 3 sub-networks, they are
+# BGNet, SIDNet, TSFNet
+
+name = "TextureWarping"
+
+    [Generator.BGNet]
+        # the configuration of the Background Inpainting Network
+        norm_type = "instance"             # use instance normalization
+        cond_nc = 4                        # number channels of conditions, RGB (3) + MASK (1) = 4
+        n_res_block = 6                    # number of residual blocks
+        num_filters = [64, 128, 128, 256]  # number of filters
+
+    [Generator.TSFNet]
+        # the configuration of the Transfer Network
+        norm_type = "instance"            # use instance normalization
+        cond_nc = 6                       # number of conditions, RGB (3) + UV_Seg(3) = 6
+        n_res_block = 6                   # number of residual blocks.
+        num_filters = [64, 128, 256]      # number of filters
+
+[Discriminator]
+name = "patch_global"
+    # the configuration of the discriminator
+    norm_type = "instance"            # use instance normalization;
+    cond_nc = 6         # the number of conditions
+    bg_cond_nc = 4      # the number of background conditions
+    ndf = 64            # the number of the base filters for Discriminator;
+    n_layers = 4        # the number of downsampling operations, convolution with stride = 2;
+    max_nf_mult = 8     # the max multi fact, [ndf, ndf * 2, ndf * 4, ndf * 8, ndf * 8, ndf * 8, ...];
+    use_sigmoid = false # here, we do not use Sigmoid, since we use LSGAN.
