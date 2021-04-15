@@ -10,6 +10,7 @@ from functools import partial
 from tqdm import tqdm
 import numpy as np
 import subprocess
+import json
 
 default_ffmpeg_exe_path = "ffmpeg"
 default_ffprobe_exe_path = "ffprobe"
@@ -197,6 +198,21 @@ def merge_multi_outs(src_img, ref_img_path, multi_out_paths, pad):
     return merge_img
 
 
+def merge_src_out(src_img, out_img_path, pad):
+    h, w = src_img.shape[:2]
+    image_size = h
+
+    out_img = cv2.imread(out_img_path)
+
+    if out_img.shape[0] != image_size and out_img.shape[1] != image_size:
+        out_img = cv2.resize(out_img, (image_size, image_size))
+
+    # print(src_img.shape, ref_img.shape, out_img.shape)
+    merge_img = np.concatenate([src_img, pad, out_img], axis=1)
+
+    return merge_img
+
+
 def load_image(image_path, image_size=512):
     """
 
@@ -208,8 +224,11 @@ def load_image(image_path, image_size=512):
         image (np.ndarray): (image_size, image_size, 3), BGR channel space, in the range of [0, 255], np.uint8.
     """
 
-    image = cv2.imread(image_path)
-    image = cv2.resize(image, (image_size, image_size))
+    if image_path:
+        image = cv2.imread(image_path)
+        image = cv2.resize(image, (image_size, image_size))
+    else:
+        image = np.zeros((image_size, image_size, 3), dtype=np.uint8)
 
     return image
 
@@ -261,7 +280,7 @@ def fuse_eight_images(img_paths, image_size):
     """
 
     Args:
-        img_paths (list of str):
+        img_paths (List[Union[str, None]]):
         image_size (int):
 
     Returns:
@@ -279,8 +298,15 @@ def fuse_source(all_src_img_paths, image_size=512):
     """
 
     Args:
-        all_src_img_paths (list of str): the list of source image paths, currently it only supports, 1, 2, 4, 8 number
-            of source images.
+        all_src_img_paths (list of str): the list of source image paths. Denotes ns as the number of source images,
+            if ns == 1, we will display one single image;
+            if ns == 2, we will display two images;
+            if ns == 3, we will pad them to four images and display them;
+            if ns == 4, we will display four images;
+            if ns == 5, we will only take the first four images and display them;
+            if ns == 6, we will only take the first four images and display them;
+            if ns == 7, we will pad them to eight images and display them;
+            if ns >= 8, we will display eight images.
 
         image_size (int): the final image resolution, (image_size, image_size, 3)
 
@@ -290,27 +316,89 @@ def fuse_source(all_src_img_paths, image_size=512):
 
     ns = len(all_src_img_paths)
 
-    # TODO, currently it only supports, 1, 2, 4, 8 number of source images.
-    assert ns in [1, 2, 4, 8], "{} must be in [1, 2, 4, 8], currently it only supports, " \
-                               "1, 2, 4, 8 number of source images."
-
     if ns == 1:
         fuse_img = load_image(all_src_img_paths[0], image_size)
 
     elif ns == 2:
         fuse_img = fuse_two_images(all_src_img_paths, image_size)
 
+    elif ns == 3:
+        # pad it to 4 images
+        visual_src_img_paths = all_src_img_paths + [""]
+        fuse_img = fuse_four_images(visual_src_img_paths, image_size)
+
     elif ns == 4:
         fuse_img = fuse_four_images(all_src_img_paths, image_size)
+
+    elif ns == 5:
+        # take only 4 images
+        visual_src_img_paths = all_src_img_paths[0:4]
+        fuse_img = fuse_four_images(visual_src_img_paths, image_size)
+
+    elif ns == 6:
+        # take only 4 images
+        visual_src_img_paths = all_src_img_paths[0:4]
+        fuse_img = fuse_four_images(visual_src_img_paths, image_size)
+
+    elif ns == 7:
+        # pad it to 8 images
+        visual_src_img_paths = all_src_img_paths + [""]
+        fuse_img = fuse_four_images(visual_src_img_paths, image_size)
 
     elif ns == 8:
         fuse_img = fuse_eight_images(all_src_img_paths, image_size)
 
+    elif ns > 8:
+        fuse_img = fuse_eight_images(all_src_img_paths[0:8], image_size)
+
     else:
-        raise ValueError("{} must be in [1, 2, 4, 8], currently it only supports, "
-                         "1, 2, 4, 8 number of source images.")
+        raise ValueError(f"the number of source images must > 0, while the current value is {ns}.")
 
     return fuse_img
+
+
+def fuse_source_output(output_mp4_path, src_img_paths, out_img_paths,
+                       audio_path=None, image_size=512, pad=10, fps=25, pool_size=15):
+    global default_ffmpeg_vcodec, default_ffmpeg_pix_fmt, default_ffmpeg_exe_path
+
+    ffmpeg_exc_path = os.environ.get("ffmpeg_exe_path", default_ffmpeg_exe_path)
+    vcodec = os.environ.get("ffmpeg_vcodec", default_ffmpeg_vcodec)
+
+    fused_src_img = fuse_source(src_img_paths, image_size)
+    pad_region = np.zeros((image_size, pad, 3), dtype=np.uint8)
+
+    pool_size = min(pool_size, os.cpu_count())
+    tmp_avi_video_path = "%s.avi" % output_mp4_path
+    fourcc = cv2.VideoWriter_fourcc(*"XVID")
+
+    W = fused_src_img.shape[1] + image_size + pad
+    videoWriter = cv2.VideoWriter(tmp_avi_video_path, fourcc, fps, (W, image_size))
+
+    total = len(out_img_paths)
+    with ProcessPoolExecutor(pool_size) as pool:
+        for img in tqdm(pool.map(merge_src_out, [fused_src_img] * total, out_img_paths, [pad_region] * total)):
+            videoWriter.write(img)
+
+    videoWriter.release()
+
+    if audio_path is not None and audio_path and os.path.exists(audio_path):
+        fuse_video_audio_output(tmp_avi_video_path, audio_path, output_mp4_path)
+        os.remove(tmp_avi_video_path)
+    else:
+        # os.system("ffmpeg -y -i %s -vcodec h264 %s > /dev/null 2>&1" % (tmp_avi_video_path, output_mp4_path))
+        # os.system("rm %s" % tmp_avi_video_path)
+
+        cmd = [
+            ffmpeg_exc_path,
+            "-y",
+            "-i", tmp_avi_video_path,
+            "-vcodec", vcodec,
+            output_mp4_path,
+            "-loglevel", "quiet"
+        ]
+        print(" ".join(cmd))
+        subprocess.call(cmd)
+        os.remove(tmp_avi_video_path)
 
 
 def fuse_source_reference_output(output_mp4_path, src_img_paths, ref_img_paths, out_img_paths,
@@ -360,7 +448,7 @@ def fuse_source_reference_output(output_mp4_path, src_img_paths, ref_img_paths, 
         os.remove(tmp_avi_video_path)
 
 
-def fuse_src_ref_multi_outputs(output_mp4_path, src_img_paths, ref_img_paths, multi_out_img_paths,
+def fuse_src_ref_multi_outputs(output_mp4_path, src_img_paths, ref_img_paths, multi_out_img_paths, audio_path=None,
                                output_dir=None, image_size=512, pad=10, pad_val=0, fps=25, pool_size=15):
 
     global default_ffmpeg_vcodec, default_ffmpeg_pix_fmt, default_ffmpeg_exe_path
@@ -397,21 +485,24 @@ def fuse_src_ref_multi_outputs(output_mp4_path, src_img_paths, ref_img_paths, mu
 
     videoWriter.release()
 
-    # os.system("ffmpeg -y -i %s -vcodec h264 %s > /dev/null 2>&1" % (tmp_avi_video_path, output_mp4_path))
-    # os.system("rm %s" % tmp_avi_video_path)
+    if audio_path is not None and audio_path and os.path.exists(audio_path):
+        fuse_video_audio_output(tmp_avi_video_path, audio_path, output_mp4_path)
+        os.remove(tmp_avi_video_path)
+    else:
+        # os.system("ffmpeg -y -i %s -vcodec h264 %s > /dev/null 2>&1" % (tmp_avi_video_path, output_mp4_path))
+        # os.system("rm %s" % tmp_avi_video_path)
 
-    cmd = [
-        ffmpeg_exc_path,
-        "-y",
-        "-i", tmp_avi_video_path,
-        "-vcodec", vcodec,
-        output_mp4_path,
-        "-loglevel", "quiet"
-    ]
-
-    print(" ".join(cmd))
-    subprocess.call(cmd)
-    os.remove(tmp_avi_video_path)
+        cmd = [
+            ffmpeg_exc_path,
+            "-y",
+            "-i", tmp_avi_video_path,
+            "-vcodec", vcodec,
+            output_mp4_path,
+            "-loglevel", "quiet"
+        ]
+        print(" ".join(cmd))
+        subprocess.call(cmd)
+        os.remove(tmp_avi_video_path)
 
 
 def fuse_video_audio_output(video_path, audio_path, out_path):
@@ -437,7 +528,7 @@ def fuse_video_audio_output(video_path, audio_path, out_path):
     subprocess.call(cmd)
 
 
-def video2frames(vid_path, out_dir, ffmpeg_exc_path="ffmpeg"):
+def video2frames(vid_path, out_dir):
     """
     Extracts all frames from the video at vid_path and saves them inside of
     out_dir.
@@ -565,3 +656,35 @@ def get_video_fps(video_path, ret_type="float"):
         return str(numerator / denominator)
     else:
         return numerator, denominator
+
+
+def check_video_has_audio(video_path):
+    """
+    Check the video has audio or not.
+
+    Args:
+        video_path (str): the video path.
+
+    Returns:
+        has_audio (bool): True, if it has audio; otherwise it returns False.
+    """
+
+    global default_ffprobe_exe_path
+
+    ffprobe_exe_path = os.environ.get("ffprobe_exe_path", default_ffprobe_exe_path)
+
+    cmd = f"{ffprobe_exe_path} -show_entries stream=codec_type -of json {video_path} -loglevel error"
+    print(cmd)
+    results = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
+
+    result_params = json.loads(results.stdout)
+    # print(result_params)
+
+    has_audio = False
+    for stream_dict in result_params["streams"]:
+        if stream_dict["codec_type"] == "audio":
+            has_audio = True
+            break
+
+    return has_audio
+

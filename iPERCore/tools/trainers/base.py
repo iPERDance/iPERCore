@@ -44,12 +44,12 @@ class BaseTrainerModel(BaseModel):
         raise NotImplementedError
 
     def save_optimizer(self, optimizer, optimizer_label, epoch_label):
-        save_filename = f"opt_epoch_{epoch_label}_id_{optimizer_label}.pth"
+        save_filename = f"opt_iter_{epoch_label}_id_{optimizer_label}.pth"
         save_path = os.path.join(self._save_dir, save_filename)
         torch.save(optimizer.state_dict(), save_path)
 
     def load_optimizer(self, optimizer, optimizer_label, epoch_label, device="cpu"):
-        load_filename = f"opt_epoch_{epoch_label}_id_{optimizer_label}.pth"
+        load_filename = f"opt_iter_{epoch_label}_id_{optimizer_label}.pth"
         load_path = os.path.join(self._save_dir, load_filename)
         assert os.path.exists(load_path), "Weights file not found. %s " \
                                           "Have you trained a model!? We are not providing one" % load_path
@@ -58,7 +58,7 @@ class BaseTrainerModel(BaseModel):
         print(f"loaded optimizer: {load_path}")
 
     def save_network(self, network, network_label, epoch_label):
-        save_filename = f"net_epoch_{epoch_label}_id_{network_label}.pth"
+        save_filename = f"net_iter_{epoch_label}_id_{network_label}.pth"
         save_path = os.path.join(self._save_dir, save_filename)
         torch.save(network.state_dict(), save_path)
         print(f"saved net: {save_path}")

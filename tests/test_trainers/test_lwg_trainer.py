@@ -23,11 +23,11 @@ class TrainerTestCase(unittest.TestCase):
         opt.output_dir = "../tests/data"
         opt.verbose = True
         opt.temporal = False
-        opt.load_epoch = -1
+        opt.load_iter = -1
 
         cfg = setup(opt)
 
-        device = torch.device("cuda:{}".format(cfg.Train.local_rank))
+        device = torch.device("cuda:{}".format(cfg.local_rank))
 
         lwg_trainer = LWGTrainer(cfg, device)
         lwg_trainer.gpu_wrapper()

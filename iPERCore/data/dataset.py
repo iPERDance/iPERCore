@@ -2,8 +2,6 @@
 
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
-import os
-import numpy as np
 
 from .transforms import ToTensor, ImageTransformer
 
@@ -14,25 +12,29 @@ class DatasetFactory(object):
 
     @staticmethod
     def get_by_name(dataset_name, opt, is_for_train):
-        if dataset_name == "iPER":
-            from .iPER_dataset import IPERDataset
-            dataset = IPERDataset(opt, is_for_train)
+        """
 
-        elif dataset_name == "iPERSeq":
-            from .iPER_dataset import SeqIPERDataset
-            dataset = SeqIPERDataset(opt, is_for_train)
+        Args:
+            dataset_name:
+            opt:
+            is_for_train:
 
-        elif dataset_name == "fashion":
-            from .fashion_dataset import FashionVideoDataset
-            dataset = FashionVideoDataset(opt, is_for_train)
+        Returns:
+            dataset (torch.utils.data.Dataset): it must implements the function of self.__getitem(item), and it
+                will return a sample dictionary which contains the following information:
+                --images (torch.Tensor): (ns + nt, 3, h, w), here `ns` and `nt` are the number of source and targets;
+                --masks (torch.Tensor): (ns + nt, 1, h, w);
+                --smpls (torch.Tensor): (ns + nt, 85);
+                --bg (torch.Tensor): (3, h, w).
+        """
 
-        elif dataset_name == "fashionSeq":
-            from .fashion_dataset import SeqFashionVideoDataset
-            dataset = SeqFashionVideoDataset(opt, is_for_train)
+        if dataset_name == "ProcessedVideo":
+            from .processed_video_dataset import ProcessedVideoDataset
+            dataset = ProcessedVideoDataset(opt, is_for_train)
 
-        elif dataset_name == "Seq_Concat_Place2":
-            from .all_dataset import ConcatVideoPlaceDataset
-            dataset = ConcatVideoPlaceDataset(opt, is_for_train)
+        elif dataset_name == "ProcessedVideo+Place2":
+            from .concat_dataset import ProcessedVideoPlace2Dataset
+            dataset = ProcessedVideoPlace2Dataset(opt, is_for_train)
 
         else:
             raise ValueError(f"Dataset {dataset_name} not recognized.")
@@ -45,48 +47,20 @@ class DatasetBase(Dataset):
     def __init__(self, opt, is_for_train):
         super(DatasetBase, self).__init__()
         self._name = "BaseDataset"
-        self._root = None
         self._opt = opt
         self._is_for_train = is_for_train
         self._intervals = opt.intervals
         self._create_transform()
 
-        self._IMG_EXTENSIONS = [
-            ".jpg", ".JPG", ".jpeg", ".JPEG",
-            ".png", ".PNG", ".ppm", ".PPM", ".bmp", ".BMP",
-        ]
-
     @property
     def name(self):
         return self._name
-
-    @property
-    def path(self):
-        return self._root
 
     def _create_transform(self):
         self._transform = transforms.Compose([])
 
     def get_transform(self):
         return self._transform
-
-    def _is_image_file(self, filename):
-        return any(filename.endswith(extension) for extension in self._IMG_EXTENSIONS)
-
-    def _is_csv_file(self, filename):
-        return filename.endswith(".csv")
-
-    def _get_all_files_in_subfolders(self, dir, is_file):
-        images = []
-        assert os.path.isdir(dir), "%s is not a valid directory" % dir
-
-        for root, _, fnames in sorted(os.walk(dir)):
-            for fname in fnames:
-                if is_file(fname):
-                    path = os.path.join(root, fname)
-                    images.append(path)
-
-        return images
 
     def __len__(self):
         raise NotImplementedError
@@ -101,43 +75,31 @@ class VideoDataset(DatasetBase):
         super(VideoDataset, self).__init__(opt, is_for_train)
         self._name = "VideoDataset"
 
+        self._num_videos = 0
+        self._vids_info = []
+        self._dataset_size = 0
         self._intervals = opt.intervals
-
-        # read dataset
-        self._read_dataset_paths()
 
     def __len__(self):
         return self._dataset_size
 
     def __getitem__(self, index):
-        # assert (index < self._dataset_size)
+        """
 
-        # start_time = time.time()
-        # get sample data
-        v_info = self._vids_info[index % self._num_videos]
-        images, smpls = self._load_pairs(v_info)
+        Args:
+            index (int): the sample index of self._dataset_size.
 
-        # pack data
-        sample = {
-            "images": images,
-            "smpls": smpls,
-            "offsets": np.zeros((1, 6890, 3), dtype=np.float32),
-            "bg_ks": self._opt.bg_ks
-        }
+        Returns:
+            sample (dict): the data sample, it contains the following informations:
+                --images (torch.Tensor): (ns + nt, 3, h, w), here `ns` and `nt` are the number of source and targets;
+                --masks (torch.Tensor): (ns + nt, 1, h, w);
+                --smpls (torch.Tensor): (ns + nt, 85);
 
-        sample = self._transform(sample)
-
-        return sample
-
-    def _read_dataset_paths(self):
+        """
         pass
 
-    def _read_vids_info(self, file_path):
+    def _read_vids_info(self):
         pass
-
-    @property
-    def video_info(self):
-        return self._vids_info
 
     def _load_pairs(self, vid_info):
         pass
@@ -147,3 +109,7 @@ class VideoDataset(DatasetBase):
             ImageTransformer(output_size=self._opt.image_size),
             ToTensor()]
         self._transform = transforms.Compose(transform_list)
+
+    @property
+    def video_info(self):
+        return self._vids_info

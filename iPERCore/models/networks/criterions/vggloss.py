@@ -60,9 +60,10 @@ class VGG19(nn.Module):
         super(VGG19, self).__init__()
 
         if ckpt_path:
-            vgg_pretrained_features = models.vgg19(pretrained=False).features
+            vgg = models.vgg19(pretrained=False)
             ckpt = torch.load(ckpt_path, map_location="cpu")
-            vgg_pretrained_features.load_state_dict(ckpt, strict=False)
+            vgg.load_state_dict(ckpt, strict=False)
+            vgg_pretrained_features = vgg.features
         else:
             vgg_pretrained_features = models.vgg19(pretrained=True).features
 
@@ -271,8 +272,8 @@ class VGGLoss(nn.Module):
             self.vgg = VGG11(ckpt_path=ckpt_path, before_relu=before_relu)
 
         self.criterion = nn.L1Loss()
-        # self.weights = [1.0/32, 1.0/16, 1.0/8, 1.0/4, 1.0]
-        self.weights = [1.0, 1.0, 1.0, 1.0, 1.0]
+        self.weights = [1.0/32, 1.0/16, 1.0/8, 1.0/4, 1.0]
+        # self.weights = [1.0, 1.0, 1.0, 1.0, 1.0]
         self.slice_ids = slice_ids
 
         self.resize = resize

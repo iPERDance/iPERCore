@@ -18,17 +18,6 @@ from iPERCore.tools.human_digitalizer.renders import SMPLRenderer
 from iPERCore.services.options.process_info import ProcessInfo
 
 
-# from utils.visualizers.skeleton import draw_skeleton
-# from utils.visualizers.visdom_visualizer import VisdomVisualizer
-# # define visualizer
-# visualizer = VisdomVisualizer(
-#     env="iPERSeq",
-#     ip="http://10.10.10.100", port=31102
-# )
-#
-# device = torch.device("cuda:0")
-
-
 class Preprocessor(BaseProcessor):
 
     def __init__(self, cfg, proc_size=512, device=torch.device("cuda:0")):
@@ -186,9 +175,9 @@ class Preprocessor(BaseProcessor):
         out_img_dir = processed_info["out_img_dir"]
 
         valid_img_info = processed_info["valid_img_info"]
-        all_img_names = valid_img_info["names"]
-        all_ids = valid_img_info["ids"]
-        all_img_paths = [os.path.join(out_img_dir, name) for name in all_img_names]
+        valid_img_names = valid_img_info["names"]
+        valid_ids = valid_img_info["ids"]
+        all_img_paths = [os.path.join(out_img_dir, name) for name in valid_img_names]
 
         crop_boxes_XYXY = processed_info["processed_cropper"]["crop_boxes_XYXY"]
         crop_keypoints = processed_info["processed_cropper"]["crop_keypoints"]
@@ -230,16 +219,40 @@ class Preprocessor(BaseProcessor):
             "init_shape": all_init_smpls[:, -10:],
         }
 
+        # update processed_pose3d
         processed_info["processed_pose3d"] = smpls_results
 
-        valid_img_info = {
-            "names": [all_img_names[i] for i in all_valid_ids],
-            "ids": [all_ids[i] for i in all_valid_ids],
-            "stage": "pose3d"
-        }
+        # update valid_img_info
+        valid_img_info["names"] = [valid_img_names[i] for i in all_valid_ids]
+        valid_img_info["ids"] = [valid_ids[i] for i in all_valid_ids]
+        valid_img_info["pose3d_ids"] = all_valid_ids.tolist()
+        valid_img_info["stage"] = "pose3d"
+
         processed_info["valid_img_info"] = valid_img_info
 
         processed_info["has_run_3dpose"] = True
+
+    def _execute_post_parser(self, processed_info: ProcessInfo):
+        out_img_dir = processed_info["out_img_dir"]
+        out_parse_dir = processed_info["out_parse_dir"]
+
+        valid_img_info = processed_info["valid_img_info"]
+        valid_img_names = valid_img_info["names"]
+        valid_ids = valid_img_info["ids"]
+
+        parser_valid_ids, mask_outs, alpha_outs = self.human_parser.run(
+            out_img_dir, out_parse_dir, valid_img_names, save_visual=False
+        )
+
+        # update the valid_img_info
+        valid_img_info["names"] = [valid_img_names[i] for i in parser_valid_ids]
+        valid_img_info["ids"] = [valid_ids[i] for i in parser_valid_ids]
+        valid_img_info["parse_ids"] = parser_valid_ids
+        valid_img_info["stage"] = "parser"
+        processed_info["valid_img_info"] = valid_img_info
+
+        # add to 'processed_parse'
+        processed_info["has_run_parser"] = True
 
     def _execute_post_find_front(self, processed_info: ProcessInfo, num_candidate=25, render_size=256):
         from iPERCore.tools.utils.geometry import mesh
@@ -253,9 +266,9 @@ class Preprocessor(BaseProcessor):
         shape = processed_pose3d["shape"]
 
         valid_img_info = processed_info["valid_img_info"]
-        all_img_names = valid_img_info["names"]
+        valid_img_names = valid_img_info["names"]
 
-        length = len(all_img_names)
+        length = len(valid_img_names)
 
         device = self.device
         render = SMPLRenderer(image_size=render_size).to(device)
@@ -318,20 +331,6 @@ class Preprocessor(BaseProcessor):
         processed_info["processed_front_info"] = video_front_counts
         processed_info["has_find_front"] = True
 
-    def _execute_post_parser(self, processed_info: ProcessInfo):
-        out_img_dir = processed_info["out_img_dir"]
-        out_parse_dir = processed_info["out_parse_dir"]
-
-        valid_img_info = processed_info["valid_img_info"]
-        all_img_names = valid_img_info["names"]
-
-        _, mask_outs, alpha_outs = self.human_parser.run(
-            out_img_dir, out_parse_dir, all_img_names, save_visual=False
-        )
-
-        # add to 'processed_parse'
-        processed_info["has_run_parser"] = True
-
     def _execute_post_inpaintor(self, processed_info: ProcessInfo,
                                 dilate_kernel_size: int = 19, dilate_iter_num: int = 3,
                                 bg_replace: bool = False):
@@ -342,14 +341,15 @@ class Preprocessor(BaseProcessor):
 
         front_info = processed_info["processed_front_info"]
         front_ids = front_info["ft"]["ids"]
+        back_ids = front_info["bk"]["ids"]
+        src_ids = set(front_ids) | set(back_ids)
 
-        valid_img_info = processed_info["valid_img_info"]
-        all_img_names = valid_img_info["names"]
+        valid_img_names = processed_info["valid_img_info"]["names"]
 
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_kernel_size, dilate_kernel_size))
 
-        for i in tqdm(front_ids):
-            img_name = all_img_names[i]
+        for i in tqdm(src_ids):
+            img_name = valid_img_names[i]
             img_path = os.path.join(out_img_dir, img_name)
             image = cv2.imread(img_path)
 
@@ -388,23 +388,27 @@ class Preprocessor(BaseProcessor):
         valid_img_info = processed_info["valid_img_info"]
 
         valid_img_names = valid_img_info["names"]
-        valid_ids = valid_img_info["ids"]
+        crop_ids = valid_img_info["crop_ids"]
+        pose3d_ids = valid_img_info["pose3d_ids"]
+        parse_ids = valid_img_info["parse_ids"]
 
         crop_keypoints = processed_cropper["crop_keypoints"]
 
         if len(crop_keypoints) > 0:
-            all_keypoints = [crop_keypoints[ids]["pose_keypoints_2d"] for ids in valid_ids]
+            pose3d_to_parse_ids = [pose3d_ids[ids] for ids in parse_ids]
+            crop_to_pose3d_ids = [crop_ids[ids] for ids in pose3d_to_parse_ids]
+            all_keypoints = [crop_keypoints[ids]["pose_keypoints_2d"] for ids in crop_to_pose3d_ids]
         else:
             all_keypoints = None
 
         prepare_smpls_info = {
-            "all_init_smpls": np.concatenate([processed_pose3d["cams"],
-                                              processed_pose3d["init_pose"],
-                                              processed_pose3d["init_shape"]], axis=-1),
+            "all_init_smpls": np.concatenate([processed_pose3d["cams"][parse_ids],
+                                              processed_pose3d["init_pose"][parse_ids],
+                                              processed_pose3d["init_shape"][parse_ids]], axis=-1),
 
-            "all_opt_smpls": np.concatenate([processed_pose3d["cams"],
-                                             processed_pose3d["pose"],
-                                             processed_pose3d["shape"]], axis=-1),
+            "all_opt_smpls": np.concatenate([processed_pose3d["cams"][parse_ids],
+                                             processed_pose3d["pose"][parse_ids],
+                                             processed_pose3d["shape"][parse_ids]], axis=-1),
 
             "valid_img_names": valid_img_names,
             "all_keypoints": all_keypoints

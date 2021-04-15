@@ -12,6 +12,7 @@ unzip -o assets/samples.zip -d  assets
 rm assets/samples.zip
 
 ## download executable files, such as ffmpeg. Windows platform needs this.
-# wget -O assets/executables.zip  "https://1drv.ws/u/s!AjjUqiJZsj8whLkv8NeuckqVWz0H3A?e=a9ROXZ"
+## wget -O assets/executables.zip  "https://download.impersonator.org/iper_plus_plus_latest_executables.zip"
+# wget -O assets/executables.zip  "http://101.32.75.151:20086/iper_plus_plus_latest_executables.zip"
 # unzip -o assets/executables.zip  -d assets
 # rm assets/executables

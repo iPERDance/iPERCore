@@ -1,0 +1,100 @@
+######################################### 0. Base Info ###############################################
+gpu_ids = "0"     # GPU setups
+local_rank = 0  # DDP if uses, otherwise ignore it
+use_cudnn = false
+
+image_size = 512   # the image size.
+time_step = 1      # the time step for temporal attention.
+num_source = 2     # fix the number of sources.
+MAX_NUM_SOURCE = 8 # The max number of source images for query operation in the attention module.
+share_bg = true    # whether share background or not, if not, then all images need to use inpainting.
+bg_ks = 11
+ft_ks = 1
+use_inpaintor = false  # use addtional background inpaintor or not.
+
+# dataset
+batch_size = 1
+intervals = 1
+serial_batches = false
+
+# visualization
+verbose = true
+tb_visual = true
+ip = ""
+port = 0
+
+# Set the number of cores for Image Cropper, and 3D-Pose Estimation.
+# If num_workers is 0, then we will not use multi-processing.
+num_workers = 1
+
+######################################### 1. Body Model ##############################################
+NUMBER_VERTS = 6890
+NUMBER_FACES = 13776
+digital_type = "cloth_smpl_link" # the type of digitalizing human 3D mesh, it could be ["smpl", "cloth_smpl_link", "sil2smpl"]
+smpl_model = "./assets/checkpoints/pose3d/smpl_model.pkl"
+smpl_model_hand = "./assets/checkpoints/pose3d/smpl_model_with_hand_v2.pkl"
+
+###################################### 2. FlowComposition ############################################
+tex_size = 3
+only_vis = false
+temporal = false
+conf_erode_ks = 3
+out_dilate_ks = 9
+
+map_name = "uv_seg"
+face_path = "./assets/checkpoints/pose3d/smpl_faces.npy"
+fim_enc_path = "./assets/configs/pose3d/mapper_fim_enc.txt"
+uv_map_path = "./assets/configs/pose3d/mapper_uv.txt"
+part_path = "./assets/configs/pose3d/smpl_part_info.json"
+front_path = "./assets/configs/pose3d/front_body.json"
+head_path = "./assets/configs/pose3d/head.json"
+facial_path = "./assets/configs/pose3d/front_facial.json"
+
+###################### 3. LiquidWarping GAN, generator and discriminator #############################
+train_name = "LWGAugBGTrainer"
+gen_name = "AttLWB-SPADE"
+dis_name = "patch_global_body_head"
+
+# detials of the network architecture, it contains the configurations of the generator and the discriminator.
+neural_render_cfg_path = "./assets/configs/neural_renders/AttLWB-SPADE.toml"
+load_path_G = "None"
+load_path_D = "None"
+load_iter = -1
+
+[Train]
+# visualization
+num_iters_validate = 1
+tb_visual = true
+print_freq_s = 180              # print errors/loss on terminal per 2 min
+display_freq_s = 600            # show images on tensorboard per 10 min
+save_latest_freq_s = 7200       # save a checkpoint per 2 hours
+
+# loss
+use_face = true
+face_factor = 1.0
+face_loss_path = "./assets/checkpoints/losses/sphere20a_20171020.pth"
+
+use_vgg = "VGG19"
+vgg_loss_path = "./assets/checkpoints/losses/vgg19-dcbb9e9d.pth"
+#vgg_loss_path = ""
+
+lambda_rec = 10.0
+lambda_tsf = 10.0
+lambda_face = 5.0
+lambda_mask = 5.0
+lambda_mask_smooth = 1.0
+lambda_D_prob = 1.0
+
+opti = "Adam"
+train_G_every_n_iterations = 1
+G_adam_b1 = 0.9
+G_adam_b2 = 0.999
+D_adam_b1 = 0.9
+D_adam_b2 = 0.999
+
+lr_G = 0.0001
+lr_D = 0.0001
+final_lr = 0.00001
+niters_or_epochs_no_decay = 400000   # fixing learning rate at the first niters_or_epochs_no_decay
+niters_or_epochs_decay = 0           # then, decreasing the learning rate
+aug_bg = true                        # background

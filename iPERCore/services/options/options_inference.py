@@ -84,8 +84,6 @@ class InferenceOptions(BaseOptions):
 
         self._parser.add_argument("--has_personalize", action="store_true", help="has personalization or not.")
 
-        self._parser.add_argument("--swap_part", type=str, default="[['head'], ['body']]",
-                                  help="part to swap for human appearance transfer.")
         self._parser.add_argument("--T_pose", action="store_true", default=False,
                                   help="view as T pose or not in human novel view synthesis.")
 

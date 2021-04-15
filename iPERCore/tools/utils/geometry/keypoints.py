@@ -160,7 +160,7 @@ class OpenPoseBody25KeypointFormater(KeypointFormater):
     def __init__(self, num_smpl_joints=45, ignore_joints=("Neck", "RHip", "LHip")):
         # ignore_joints=("Neck", "RHip", "LHip")
         self.mapper, self.ignore_ids, self.ignore_joints, self.num_smpl_joints = self.mapper_to_smpl(
-            num_smpl_joints, ignore_joints)
+            num_smpl_joints,  )
 
     def mapper_to_smpl(self, num_smpl_joints, ignore_joints=("Neck", "RHip", "LHip")):
         self.ignore_joints = ignore_joints

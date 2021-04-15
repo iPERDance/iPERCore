@@ -10,8 +10,8 @@ from iPERCore.tools.human_digitalizer.renders import SMPLRenderer
 from iPERCore.tools.utils.geometry import mesh
 
 
-# from utils.visualizers.visdom_visualizer import VisdomVisualizer
-
+# from iPERCore.tools.utils.visualizers.visdom_visualizer import VisdomVisualizer
+#
 # visualizer = VisdomVisualizer(
 #     env="morph",
 #     ip="http://10.10.10.100", port=31102
@@ -21,10 +21,19 @@ from iPERCore.tools.utils.geometry import mesh
 class FlowComposition(torch.nn.Module):
 
     PART_IDS = {
-        "facial": [10],
         "head": [0],
-        "upper": [1, 2, 3, 8, 9],
-        "lower": [4, 5, 6, 7],
+        "torso": [1],
+        "left_leg": [2],
+        "right_leg": [3],
+        "left_arm": [4],
+        "right_arm": [5],
+        "left_foot": [6],
+        "right_foot": [7],
+        "left_hand": [8],
+        "right_hand": [9],
+        "facial": [10],
+        "upper": [1, 4, 5, 8, 9],
+        "lower": [2, 3, 6, 7],
         "body": [1, 2, 3, 4, 5, 6, 7, 8, 9],
         "all": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     }
@@ -46,7 +55,6 @@ class FlowComposition(torch.nn.Module):
 
         # for Swapper
         self.part_faces = None
-        self.part_fn = None
         self.uv_parts = None
 
     def _create_render(self):
@@ -165,13 +173,11 @@ class FlowComposition(torch.nn.Module):
             else:
                 human_sil = 1 - cond[:, -1:]
 
-            # TODO, here ks=3 is hyper-parameter, might need to set it to the configuration.
-            smpl_info["confidant_sil"] = morph(human_sil, ks=3, mode="erode")
+            smpl_info["confidant_sil"] = morph(human_sil, ks=self._opt.conf_erode_ks, mode="erode")
 
-            # TODO, here ks=51 is hyper-parameter, might need to set it to the configuration.
             smpl_info["outpad_sil"] = morph(
                 ((human_sil + 1 - cond[:, -1:]) > 0).float(),
-                ks=51, mode="dilate"
+                ks=self._opt.out_dilate_ks, mode="dilate"
             )
             # f2pts = self.make_morph_f2pts(f2pts, fim, smpl_info["human_sil"], erode_ks=0)
 
@@ -291,10 +297,10 @@ class FlowComposition(torch.nn.Module):
         """
 
         Args:
-            src_img (torch.Tensor): (3, h, w)
-            weights (torch.Tensor): (n1, top_k)
+            src_img       (torch.Tensor): (3, h, w)
+            weights       (torch.Tensor): (n1, top_k)
             uncertain_pts (torch.Tensor): (n1, 2)
-            nn_pts  (torch.Tensor): (n1, top_k, 2)
+            nn_pts        (torch.Tensor): (n1, top_k, 2)
             confidant_sil (torch.Tensor): (1, h, w)
 
         Returns:
@@ -330,9 +336,9 @@ class FlowComposition(torch.nn.Module):
         """
 
         Args:
-            src_img (torch.Tensor): (bs * ns, 3, h, w)
-            src_info (dict):
-            erode_ks (int):
+            src_img   (torch.Tensor): (bs * ns, 3, h, w)
+            src_info  (dict):
+            erode_ks  (int):
             dilate_ks (int):
 
         Returns:
@@ -383,9 +389,9 @@ class FlowComposition(torch.nn.Module):
         """
 
         Args:
-            f2pts (torch.Tensor): (nf, 3, 2)
-            fbc (torch.Tensor): (nf, 2)
-            fim (torch.Tensor): (h, w)
+            f2pts          (torch.Tensor): (nf, 3, 2)
+            fbc            (torch.Tensor): (nf, 2)
+            fim            (torch.Tensor): (h, w)
             confidant_mask (torch.Tensor): (h, w)
         Returns:
             morph_f2pts (torch.Tensor): (nf, 3, 2)
@@ -418,10 +424,10 @@ class FlowComposition(torch.nn.Module):
         """
 
         Args:
-            f2pts (torch.Tensor): (bs, nf, 3, 2)
-            fim (torch.Tensor): (bs, h, w)
-            human_sil (torch.Tensor): (bs, 1, h, w)
-            erode_ks (int)
+            f2pts       (torch.Tensor): (bs, nf, 3, 2)
+            fim         (torch.Tensor): (bs, h, w)
+            human_sil   (torch.Tensor): (bs, 1, h, w)
+            erode_ks    (int)
 
         Returns:
             morphed_f2pts (torch.Tensor): (bs, nf, 3, 2)
@@ -447,29 +453,29 @@ class FlowComposition(torch.nn.Module):
         """
             calculate the inputs for bg_net and src_net.
         Args:
-            src_img (torch.tensor): (bs, ns, 3, h, w)
+            src_img (torch.Tensor): (bs, ns, 3, h, w)
             src_info (dict): the details information of smpl, including:
-                --theta (torch.tensor): (bs * ns, 85),
-                --cam (torch.tensor):   (bs * ns, 3),
-                --pose (torch.tensor):  (bs * ns, 72),
-                --shape (torch.tensor): (bs * ns, 10),
-                --verts (torch.tensor): (bs * ns, 6890, 3),
-                --j2d (torch.tensor):   (bs * ns, 19, 2),
-                --j3d (torch.tensor):   (bs * ns, 19, 3),
-                --masks (torch.tensor or None): (bs * ns, 1, h, w)
+                --theta (torch.Tensor): (bs * ns, 85),
+                --cam   (torch.Tensor):   (bs * ns, 3),
+                --pose  (torch.Tensor):  (bs * ns, 72),
+                --shape (torch.Tensor): (bs * ns, 10),
+                --verts (torch.Tensor): (bs * ns, 6890, 3),
+                --j2d   (torch.Tensor):   (bs * ns, 19, 2),
+                --j3d   (torch.Tensor):   (bs * ns, 19, 3),
+                --masks (torch.Tensor or None): (bs * ns, 1, h, w)
 
             primary_ids (List[int] or None)   : set the ids of source images as primary.
 
         Returns:
-            uv_img (torch.tensor):       (bs, 3, h, w)
-            input_G_bg (torch.tensor):   (bs, 1, 4, h, w)
+            uv_img      (torch.tensor):  (bs, 3, h, w)
+            input_G_bg  (torch.tensor):  (bs, 1, 4, h, w)
             input_G_src (torch.tensor):  (bs, ns, 6, h, w)
         """
 
         bs, ns, _, h, w = src_img.shape
         nt = self._opt.time_step
 
-        self.make_uv_setup(bs, ns, nt, src_img.device)
+        self.make_uv_setup(bs, self._opt.num_source, nt, src_img.device)
 
         # 1. make morph image
         # morph_src_img = self.make_morph_image(src_img.view(bs * ns, 3, h, w),
@@ -516,19 +522,21 @@ class FlowComposition(torch.nn.Module):
             nt (int): the number of time-step
 
             src_info (dict): the dict of smpl details, including
-                --fim   (torch.tensor):   (bs * ns, h, w),
-                --wim   (torch.tensor):   (bs * ns, h, w, 3),
-                --f2pts (torch.tensor): (bs * ns, 13776, 3, 3) or (bs * ns, 13776, 3, 2)
+                --fim            (torch.Tensor): (bs * ns, h, w),
+                --wim            (torch.Tensor): (bs * ns, h, w, 3),
+                --f2pts          (torch.Tensor): (bs * ns, 13776, 3, 3) or (bs * ns, 13776, 3, 2)
+                --selected_f2pts (torch.Tensor): (bs * ns, 13776, 3, 3) or (bs * ns, 13776, 3, 2)
+                --only_vis_f2pts (torch.Tensor): (bs * ns, 13776, 3, 3) or (bs * ns, 13776, 3, 2)
 
             temp_info (dict or None): the dict of smpl details, including
-                --fim   (torch.tensor):   (bs * nt, h, w),
-                --wim   (torch.tensor):   (bs * nt, h, w, 3),
-                --f2pts (torch.tensor): (bs * nt, 13776, 3, 3) or (bs * nt, 13776, 3, 2)
+                --fim   (torch.Tensor):   (bs * nt, h, w),
+                --wim   (torch.Tensor):   (bs * nt, h, w, 3),
+                --f2pts (torch.Tensor): (bs * nt, 13776, 3, 3) or (bs * nt, 13776, 3, 2)
 
             ref_info (dict): the dict of smpl details, including
-                --fim   (torch.tensor):   (bs, h, w),
-                --wim   (torch.tensor):   (bs, h, w, 3),
-                --f2pts (torch.tensor): (bs, 13776, 3, 3) or (bs, 13776, 3, 2)
+                --fim   (torch.Tensor):   (bs, h, w),
+                --wim   (torch.Tensor):   (bs, h, w, 3),
+                --f2pts (torch.Tensor): (bs, 13776, 3, 3) or (bs, 13776, 3, 2)
 
             temporal (bool): calculate the temporal transformation flow or not, if true and it will return Ttt.
             use_selected_f2pts (bool): use the selected parts or not.
@@ -743,22 +751,26 @@ class FlowCompositionForSwapper(FlowComposition):
         self._opt = opt
         self._name = "FlowCompositionForSwapper"
 
-    def make_uv_setup(self, bs, ns, nt, device):
-        if self.f2uvs is None:
-            uv_fim, uv_wim = self.render.render_uv_fim_wim(bs * max(ns, nt))
-            self.f2uvs = self.render.get_f_uvs2img(bs * max(ns, nt))
-            self.uv_fim = uv_fim
-            self.uv_wim = uv_wim
-            self.one_map = torch.ones(bs * ns, 1, self._opt.image_size, self._opt.image_size,
-                                      dtype=torch.float32).to(device)
+        self.all_faces_ids = list(range(self.render.nf))
+        self.part_faces = list(self.render.body_parts.values())
 
-            self.part_faces = list(self.render.body_parts.values())
-            self.part_fn = torch.tensor(
-                mesh.create_mapping("par", self._opt.uv_mapping, contain_bg=True,
-                                    fill_back=self.render.fill_back)).float().to(device)
+    def make_uv_setup(self, bs, ns, nt, device):
+        super(FlowCompositionForSwapper, self).make_uv_setup(bs, ns, nt, device)
+
+        if self.f2uvs is None:
             self.uv_parts = self.render.encode_fim(fim=self.uv_fim, transpose=True)
 
     def get_selected_fids(self, selected_part_ids):
+        """
+
+        Args:
+            selected_part_ids (list of int):
+
+        Returns:
+            selected_fids (list of int):
+
+        """
+
         selected_fids = set()
         for i in selected_part_ids:
             fs = set(self.part_faces[i])
@@ -801,7 +813,7 @@ class FlowCompositionForSwapper(FlowComposition):
             src_info["selected_obj_f2pts"] = self.render.get_vis_f2pts(selected_obj_f2pts, fim)
             src_info["selected_f2pts"] = self.render.get_vis_f2pts(selected_f2pts, fim)
 
-    def merge_uv_img(self, src_img, src_info, primary_ids=0):
+    def merge_uv_img(self, src_info_list):
         """
             [src_img_0, src_img_1, ..., src_img_sn-1], src_img[0: primary + 1] are the primary images.
             for the selected area of the primary, average the area of the primary and the left;
@@ -809,31 +821,139 @@ class FlowCompositionForSwapper(FlowComposition):
             This operation is going to reduce the contrast lighting among the sources.
 
         Args:
-            src_img (torch.tensor): (bs, ns, 3, h, w)
-            src_info (dict):
-            primary_ids (int):
+            src_info_list (List[dict]):
 
         Returns:
             merge_uv (torch.tensor): (bs, 3, h, w)
         """
 
-        bs, ns, _, h, w = src_img.shape
-        bsxns = bs * ns
+        merge_uv_img = []
+        merge_uv_vis = []
 
-        # selected_area
-        selected_src_f2pts = src_info["selected_obj_f2pts"]
-        Ts2uv = self.render.cal_bc_transform(selected_src_f2pts, self.uv_fim[0:bsxns], self.uv_wim[0:bsxns])
-        src_warp_to_uv = F.grid_sample(src_img.view(bs * ns, 3, h, w), Ts2uv).view(bs, ns, -1, h, w)
-        selected_warp_to_uv = F.grid_sample(self.one_map, Ts2uv).view(bs, ns, -1, h, w)
+        for i, src_info in enumerate(src_info_list):
+            uv_img = src_info["uv_img"]
+            selected_src_f2pts = src_info["selected_obj_f2pts"][0:1]
+            Ts2uv = self.render.cal_bc_transform(selected_src_f2pts, self.uv_fim[0:1], self.uv_wim[0:1])
+            vis_warp_to_uv = F.grid_sample(self.one_map[0:1], Ts2uv)
 
-        left_facial_src_f2pts = src_info["obj_f2pts"].view(bs, ns, -1, 3, 2)[:, primary_ids + 1]
-        left_facial_Ts2uv = self.render.cal_bc_transform(left_facial_src_f2pts, self.uv_fim[0:1], self.uv_wim[0:1])
-        left_src_warp_to_uv = F.grid_sample(src_img[:, primary_ids + 1], left_facial_Ts2uv)
-        left_src_warp_to_uv = left_src_warp_to_uv * selected_warp_to_uv[:, primary_ids]
+            merge_uv_img.append(uv_img)
+            merge_uv_vis.append(vis_warp_to_uv)
 
-        facial_primary = src_warp_to_uv[:, primary_ids] * 0.65 + left_src_warp_to_uv * 0.35
-        src_warp_to_uv[:, primary_ids] = facial_primary
+        merge_uv_img = torch.cat(merge_uv_img, dim=0)
+        merge_uv_vis = torch.cat(merge_uv_vis, dim=0)
+        norm_uv_vis = merge_uv_vis / (torch.sum(merge_uv_vis, dim=0, keepdim=True) + 1e-7)
+        uv_img = torch.sum(merge_uv_img * norm_uv_vis, dim=0, keepdim=True)
 
-        merge_uv = torch.sum(src_warp_to_uv, dim=1) / (
-            torch.sum(selected_warp_to_uv, dim=1) + 1e-5)
-        return merge_uv
+        # print(uv_img.shape, norm_uv_vis.max(), norm_uv_vis.min())
+        #
+        # visualizer.vis_named_img(f"merge_uv_img", merge_uv_img)
+        # visualizer.vis_named_img(f"merge_uv_vis", merge_uv_vis)
+        # visualizer.vis_named_img(f"norm_uv_vis", norm_uv_vis, denormalize=False)
+        # visualizer.vis_named_img(f"uv_img", uv_img)
+
+        return uv_img
+
+    def merge_src_info(self, src_info_list, primary_ids):
+        """
+
+        Args:
+            src_info_list (list of dict):
+            primary_ids (int):
+
+        Returns:
+            merge_src_info (dict): the source setup information, it contains the followings:
+                --cam       (torch.Tensor):             (ns, 3);
+                --shape     (torch.Tensor):             (ns, 10);
+                --pose      (torch.Tensor):             (ns, 72);
+                --fim       (torch.Tensor):             (1 * ns, h, w),
+                --wim       (torch.Tensor):             (1 * ns, h, w, 3),
+                --f2pts     (torch.Tensor):             (1 * ns, 13776, 3, 2)
+                --obj_f2pts (torch.Tensor):             (1 * ns, 13376, 3, 2)
+                --selected_f2pts     (torch.Tensor):    (1 * ns, 13776, 3, 2)
+                --selected_obj_f2pts (torch.Tensor):    (1 * ns, 13776, 3, 2)
+                --only_vis_f2pts     (torch.Tensor):    (1 * ns, 13776, 3, 2)
+                --feats     (Tuple[List]): ([(ns, c1, h1, w2), ..., (ns, ck, hk, wk)],
+                                            [(ns, ck, hk, wk), ..., (ns, ck, hk, wk)])
+
+                --offsets   (torch.Tensor or 0):    (num_verts, 3) or 0;
+                --links_ids (torch.Tensor or None): (num_verts, 3) or None;
+                --uv_img    (torch.Tensor):         (1, 3, h, w);
+                --bg        (torch.Tensor):         (1, 3, h, w);
+        """
+
+        merge_src_info = {
+            "img": [],
+            "cam": [],
+            "shape": [],
+            "pose": [],
+            "fim": [],
+            "wim": [],
+            "f2pts": [],
+            "obj_f2pts": [],
+            "selected_f2pts": [],
+            "selected_obj_f2pts": [],
+            "only_vis_f2pts": [],
+            "feats": ([], []),
+
+            "offsets": [],
+            "links_ids": [],
+            "uv_img": [],
+            "bg_img": [],
+
+            "num_source": 0
+        }
+
+        feats_1_list = []
+        feats_2_list = []
+        for i, src_info in enumerate(src_info_list):
+
+            merge_src_info["num_source"] += src_info["num_source"]
+
+            merge_src_info["img"].append(src_info["img"])
+            merge_src_info["cam"].append(src_info["cam"])
+            merge_src_info["shape"].append(src_info["shape"])
+            merge_src_info["pose"].append(src_info["pose"])
+            merge_src_info["fim"].append(src_info["fim"])
+            merge_src_info["wim"].append(src_info["wim"])
+            merge_src_info["f2pts"].append(src_info["f2pts"])
+            merge_src_info["obj_f2pts"].append(src_info["obj_f2pts"])
+            merge_src_info["selected_f2pts"].append(src_info["selected_f2pts"])
+            merge_src_info["selected_obj_f2pts"].append(src_info["selected_obj_f2pts"])
+            merge_src_info["only_vis_f2pts"].append(src_info["only_vis_f2pts"])
+
+            feats_1, feats_2 = src_info["feats"]
+            feats_1_list.append(feats_1)
+            feats_2_list.append(feats_2)
+
+            if i == primary_ids:
+                merge_src_info["offsets"] = src_info["offsets"]
+                merge_src_info["links_ids"] = src_info["links_ids"]
+                merge_src_info["uv_img"] = src_info["uv_img"]
+                merge_src_info["bg"] = src_info["bg"]
+
+        merge_src_info["img"] = torch.cat(merge_src_info["img"], dim=1)
+        merge_src_info["cam"] = torch.cat(merge_src_info["cam"], dim=0)
+        merge_src_info["shape"] = torch.cat(merge_src_info["shape"], dim=0)
+        merge_src_info["pose"] = torch.cat(merge_src_info["pose"], dim=0)
+        merge_src_info["fim"] = torch.cat(merge_src_info["fim"], dim=0)
+        merge_src_info["wim"] = torch.cat(merge_src_info["wim"], dim=0)
+        merge_src_info["f2pts"] = torch.cat(merge_src_info["f2pts"], dim=0)
+        merge_src_info["obj_f2pts"] = torch.cat(merge_src_info["obj_f2pts"], dim=0)
+        merge_src_info["selected_f2pts"] = torch.cat(merge_src_info["selected_f2pts"], dim=0)
+        merge_src_info["selected_obj_f2pts"] = torch.cat(merge_src_info["selected_obj_f2pts"], dim=0)
+        merge_src_info["only_vis_f2pts"] = torch.cat(merge_src_info["only_vis_f2pts"], dim=0)
+
+        merge_feats_1 = list(zip(*feats_1_list))
+        merge_feats_2 = list(zip(*feats_2_list))
+
+        for merge_feats in merge_feats_1:
+            merge_src_info["feats"][0].append(torch.cat(merge_feats, dim=0))
+
+        for merge_feats in merge_feats_2:
+            merge_src_info["feats"][1].append(torch.cat(merge_feats, dim=0))
+
+        merge_uv = self.merge_uv_img(src_info_list)
+
+        merge_src_info["uv_img"] = merge_uv
+
+        return merge_src_info

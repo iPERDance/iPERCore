@@ -8,24 +8,24 @@ class NetworksFactory(object):
     def get_by_name(network_name, *args, **kwargs):
 
         if network_name == "AttLWB-AdaIN":
-            from .generators.salwb_adain_resunet import AttentionLWBGenerator
+            from .generators.attlwb_adain_resunet import AttentionLWBGenerator
             network = AttentionLWBGenerator(*args, **kwargs)
 
         elif network_name == "AttLWB-SPADE":
-            from .generators.salwb_spade_resunet import AttentionLWBGenerator
+            from .generators.attlwb_spade_resunet import AttentionLWBGenerator
             network = AttentionLWBGenerator(*args, **kwargs)
 
         elif network_name == "AttLWB-Front-SPADE":
-            from .generators.salwb_spade_resunet import AttentionLWBFrontGenerator
+            from .generators.attlwb_spade_resunet import AttentionLWBFrontGenerator
             network = AttentionLWBFrontGenerator(*args, **kwargs)
 
         elif network_name == "AddLWB":
-            from .generators.lwb_add_resunet import AddLWBGenerator
+            from .generators.lwb_resunet import AddLWBGenerator
             network = AddLWBGenerator(*args, **kwargs)
 
         elif network_name == "AvgLWB":
-            from .generators.lwb_avg_resunet import AddLWBGenerator
-            network = AddLWBGenerator(*args, **kwargs)
+            from .generators.lwb_resunet import AvgLWBGenerator
+            network = AvgLWBGenerator(*args, **kwargs)
 
         elif network_name == "SoftGateAddLWB":
             from .generators.lwb_softgate_resunet import SoftGateAddLWBGenerator
@@ -34,6 +34,14 @@ class NetworksFactory(object):
         elif network_name == "SoftGateAvgLWB":
             from .generators.lwb_softgate_resunet import SoftGateAvgLWBGenerator
             network = SoftGateAvgLWBGenerator(*args, **kwargs)
+
+        elif network_name == "InputConcat":
+            from .generators.input_concat_resunet import InputConcatGenerator
+            network = InputConcatGenerator(*args, **kwargs)
+
+        elif network_name == "TextureWarping":
+            from .generators.texture_warping_resunet import TextureWarpingGenerator
+            network = TextureWarpingGenerator(*args, **kwargs)
 
         elif network_name == "multi_scale":
             from .discriminators import MultiScaleDiscriminator

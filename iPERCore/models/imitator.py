@@ -168,7 +168,7 @@ class Imitator(BaseRunnerModel):
         net.load_state_dict(ckpt, strict=False)
         net.eval()
 
-        print(F"Loading net from {load_path}")
+        print(f"Loading net from {load_path}")
 
         temporal_fifo = TemporalFIFO(self._opt.time_step, len(cfg.TSFNet.num_filters), cfg.TSFNet.n_res_block)
 
@@ -203,6 +203,7 @@ class Imitator(BaseRunnerModel):
         # 2.1 the source smpl information
         offsets = torch.tensor(offsets).float().to(self.device)
         src_info = self.body_rec.get_details(src_smpl, offsets, links_ids=links_ids)
+        src_info["num_source"] = src_smpl.shape[0]
 
         if masks is not None:
             src_info["masks"] = 1.0 - torch.tensor(masks).float().to(self.device)
@@ -237,7 +238,7 @@ class Imitator(BaseRunnerModel):
         self.src_info = src_info
 
         if visualizer is not None:
-            visualizer.vis_named_img("bg", src_info["bg"][0])
+            visualizer.vis_named_img("bg", src_info["bg"])
             visualizer.vis_named_img("src_img", src_info["img"][0])
             visualizer.vis_named_img("src_cond", src_info["cond"])
             visualizer.vis_named_img("uv_img", src_info["uv_img"])
@@ -260,22 +261,38 @@ class Imitator(BaseRunnerModel):
         """
             process the inputs for tsf_net
         Args:
-            src_info:
-            tgt_smpl:
-            cam_strategy:
-            t (int):
-            primary_ids (int):
+            src_info     (dict): the source setup information, it contains the followings:
+                --cam       (torch.Tensor):         (ns, 3);
+                --shape     (torch.Tensor):         (ns, 10);
+                --pose      (torch.Tensor):         (ns, 72);
+                --fim       (torch.Tensor):         (1 * ns, h, w),
+                --wim       (torch.Tensor):         (1 * ns, h, w, 3),
+                --f2pts     (torch.Tensor):         (1 * ns, 13776, 3, 2)
+                --selected_f2pts (torch.Tensor):    (1 * ns, 13776, 3, 2)
+                --only_vis_f2pts (torch.Tensor):    (1 * ns, 13776, 3, 2)
+                --feats     (Tuple[List]): ([(ns, c1, h1, w2), ..., (ns, ck, hk, wk)],
+                                            [(ns, ck, hk, wk), ..., (ns, ck, hk, wk)])
+
+                --offsets   (torch.Tensor or 0):    (num_verts, 3) or 0;
+                --links_ids (torch.Tensor or None): (num_verts, 3) or None;
+                --uv_img    (torch.Tensor):         (1, 3, h, w);
+                --bg        (torch.Tensor):         (1, 3, h, w);
+
+            tgt_smpl     (torch.Tensor) :  (nt, 85)
+            cam_strategy (str): "smooth"
+            t            (int):
+            primary_ids  (int):
             use_selected_f2pts (bool):
 
         Returns:
-            input_G_tsf (torch.tensor):
-            Tst (torch.tensor):
-            Ttt (torch.tensor or None):
-            temp_enc_outs (list of torch.tensor):
-            ref_info (dict):
+            input_G_tsf   (torch.Tensor):
+            Tst           (torch.Tensor):
+            Ttt           (torch.Tensor or None):
+            temp_enc_outs (list of torch.Tensor):
+            ref_info      (dict):
         """
         bs = 1
-        ns = self._opt.num_source
+        ns = src_info["num_source"]
 
         # 1. swap the params of smpl
         if t == 0 and cam_strategy == "smooth":
@@ -308,23 +325,18 @@ class Imitator(BaseRunnerModel):
         return input_G_tsf, Tst, Ttt, temp_enc_outs, temp_res_outs, ref_info
 
     @torch.no_grad()
-    def inference(self, tgt_paths=None, tgt_smpls=None, cam_strategy="smooth",
-                  output_dir="", use_selected_f2pts=False, visualizer=None, verbose=True):
-
-        assert (tgt_paths is not None) or (tgt_smpls is not None)
-
-        if tgt_paths is not None:
-            length = len(tgt_paths)
-        else:
-            length = len(tgt_smpls)
+    def inference(self, tgt_smpls, cam_strategy="smooth", output_dir="", prefix="pred_",
+                  use_selected_f2pts=False, visualizer=None, verbose=True):
 
         outputs = []
-        process_bar = tqdm(range(length)) if verbose else range(length)
+        length = len(tgt_smpls)
+        process_bar = tqdm(range(length), desc=prefix) if verbose else range(length)
 
         self.first_cam = None
 
-        tgt_smpls = torch.tensor(tgt_smpls).float().cuda()
-        tgt_smpls = self.weak_cam_swapper.stabilize(tgt_smpls)
+        tgt_smpls = torch.tensor(tgt_smpls).float().to(self.device)
+        if cam_strategy == "smooth":
+            tgt_smpls = self.weak_cam_swapper.stabilize(tgt_smpls)
 
         for t in process_bar:
             tgt_smpl = tgt_smpls[t:t+1]
@@ -356,7 +368,7 @@ class Imitator(BaseRunnerModel):
             if output_dir:
                 filename = "{:0>8}.png".format(t)
                 preds = preds[0].cpu().numpy()
-                file_path = os.path.join(output_dir, "pred_" + filename)
+                file_path = os.path.join(output_dir, prefix + filename)
                 cv_utils.save_cv2_img(preds, file_path, normalize=True)
 
                 outputs.append(file_path)
@@ -398,16 +410,21 @@ class Viewer(Imitator):
     def inference(self, tgt_smpls, cam_strategy="smooth",
                   output_dir="", visualizer=None, verbose=True):
 
-        length = len(tgt_smpls)
-
         outputs = []
+
+        length = len(tgt_smpls)
         process_bar = tqdm(range(length)) if verbose else range(length)
 
-        for t in process_bar:
-            tgt_smpl = torch.tensor(tgt_smpls[t]).float()[None].to(self.device)
+        self.first_cam = None
 
+        tgt_smpls = torch.tensor(tgt_smpls).float().to(self.device)
+        if cam_strategy == "smooth":
+            tgt_smpls = self.weak_cam_swapper.stabilize(tgt_smpls)
+
+        for t in process_bar:
+            tgt_smpl = tgt_smpls[t:t+1]
             input_G_tsf, Tst, Ttt, temp_enc_outs, temp_res_outs, ref_info = self.make_inputs_for_tsf(
-                self.src_info, tgt_smpl, cam_strategy, t
+                self.src_info, tgt_smpl, cam_strategy, t, use_selected_f2pts=False
             )
 
             preds, tsf_mask = self.forward(input_G_tsf[:, 0], Tst, temp_enc_outs, temp_res_outs, Ttt)
@@ -432,12 +449,18 @@ class Viewer(Imitator):
                 self.post_update(ref_info, preds)
 
             if output_dir:
-                filename = "pred_{:0>8}.png".format(t)
+                filename = "{:0>8}.png".format(t)
                 preds = preds[0].cpu().numpy()
-                file_path = os.path.join(output_dir, filename)
+                file_path = os.path.join(output_dir, "pred_" + filename)
                 cv_utils.save_cv2_img(preds, file_path, normalize=True)
 
                 outputs.append(file_path)
+            else:
+                preds = preds[0].cpu().numpy()
+                outputs.append(preds)
+                # tsf_mask = tsf_mask[0, 0].cpu().numpy() * 255
+                # tsf_mask = tsf_mask.astype(np.uint8)
+                # cv_utils.save_cv2_img(tsf_mask, os.path.join(output_dir, "mask_" + filename), normalize=False)
 
         return outputs
 
@@ -449,7 +472,10 @@ class Swapper(Imitator):
 
     def _create_networks(self):
         # 1. body mesh recovery model
-        self.body_rec = SMPL(self._opt.smpl_model).to(self.device)
+        # self.body_rec = SMPL(self._opt.smpl_model).to(self.device)
+        self.body_rec = SMPLH(model_path=self._opt.smpl_model_hand).to(self.device)
+
+        self.weak_cam_swapper = cam_pose_utils.WeakPerspectiveCamera(self.body_rec)
 
         # 2. flow composition module
         self.flow_comp = FlowCompositionForSwapper(opt=self._opt).to(self.device)
@@ -461,13 +487,24 @@ class Swapper(Imitator):
         self.generator = self.generator.to(self.device)
 
     def get_selected_info_by_part_mask(self, swap_masks):
+        """
+        Get the selected face index by annotated part masks.
+
+        Args:
+            swap_masks (List[List[np.ndarray]]):
+
+        Returns:
+            --selected_part_ids (List[List[int]]):
+            --selected_face_ids (List[List[int]]):
+        """
         raise NotImplementedError
 
-    def get_selected_info_by_part_name(self, swap_parts):
+    def get_selected_info_by_part_name(self, swap_parts, primary_ids=0):
         """
             Each source image might provides multiple parts, and here we need to calculate the parts of each source.
         Args:
             swap_parts (List[List[str]]): the part names of each source.
+            primary_ids (int):
 
         Returns:
             --selected_part_ids (List[List[int]]):
@@ -476,6 +513,8 @@ class Swapper(Imitator):
 
         selected_part_ids = []
         selected_face_ids = []
+        selected_face_ids_set = set()
+        selected_part_ids_set = set()
         for swap_part in swap_parts:
 
             each_swap_part_ids = set()
@@ -487,44 +526,97 @@ class Swapper(Imitator):
                 each_swap_part_ids |= set(part_ids)
                 each_swap_face_ids |= set(face_ids)
 
+            selected_face_ids_set |= each_swap_face_ids
+            selected_part_ids_set |= each_swap_part_ids
+
             selected_part_ids.append(list(each_swap_part_ids))
             selected_face_ids.append(list(each_swap_face_ids))
 
+        left_face_ids = set(self.flow_comp.all_faces_ids) - selected_face_ids_set
+
+        if len(left_face_ids) > 0:
+            primary_face_ids = set(selected_face_ids[primary_ids])
+            primary_face_ids |= left_face_ids
+
+            print(f"{len(left_face_ids)} faces have not been selected, "
+                  f"and we will take all of them into primary faces. ")
+
+            selected_face_ids[primary_ids] = list(primary_face_ids)
+
         return selected_part_ids, selected_face_ids
 
-    def source_setup(self, src_path, src_smpl, masks=None, bg_img=None, offsets=0,
-                     swap_parts=(["head"], ["body"]), swap_masks=None, visualizer=None):
+    def swap_source_setup(self, src_path_list, src_smpl_list, masks_list, bg_img_list=None,
+                          offsets_list=0, links_ids_list=None, swap_parts=(["head"], ["body"]),
+                          swap_masks=None, primary_ids=0, visualizer=None):
         """
             pre-process the source information
         Args:
-            src_path (list of str): the source image paths, len(src_path) = ns
-            src_smpl (torch.tensor or np.ndarray)): (ns, 85)
-            masks (list of np.ndarray): [(1, h, w), (1, h, w), ..., (1, h, w)] or (ns, 1, h, w)
-            bg_img (torch.tensor): (3, h, w)
-            offsets (np.ndarray or 0): (ns, nv, 3) or (nv, 3),
-            swap_parts (List[List[str]]):
-            swap_masks (List[np.ndarray]):
-            visualizer (Visualizer or None):
+            src_path_list  (List[List[str]]): the source image paths, len(src_path_list) = the number of people;
+            src_smpl_list  (List[Union[torch.tensor,np.ndarray]]): [(ns_1, 85), ..., (ns_p, 85)];
+            masks_list     (List[Union[np.ndarray, None]]): [(ns_1, 1, h, w), ..., None, ..., (ns_p, 1, h, w)]
+            bg_img_list    (List[Union[torch.Tensor, None]]): (3, h, w)
+            offsets_list   (List[np.ndarray]): [(num_verts, 3), ..., (num_verts, 3)] or 0;
+            links_ids_list (List[Union[np.ndarray, None]]): [(num_verts, 3), ..., None, ..., (num_verts, 3)];
+            swap_parts     (List[List[str]]):
+            swap_masks     (Union[None, List[np.ndarray]]):
+            primary_ids   (int):
+            visualizer     (Visualizer or None):
 
         Returns:
             src_info (dict): the source information.
         """
 
-        src_info = super().source_setup(src_path, src_smpl, masks, bg_img,
-                                        offsets, visualizer=visualizer)
-        return self.swap_setup(src_info, swap_parts, swap_masks)
-
-    def swap_setup(self, src_info, swap_parts=None, swap_masks=None):
-        assert swap_parts is not None or swap_masks is not None
+        assert not (swap_parts is None and swap_masks is None)
 
         if swap_parts is not None:
             selected_part_ids, selected_face_ids = self.get_selected_info_by_part_name(swap_parts)
         else:
-            self.get_selected_info_by_part_mask(swap_masks)
+            selected_part_ids, selected_face_ids = self.get_selected_info_by_part_mask(swap_masks)
 
-        self.flow_comp.add_rendered_selected_f2pts(src_info, selected_face_ids)
-        merge_uv = self.flow_comp.merge_uv_img(src_info["img"], src_info)
-        # src_info["merge_uv"] = merge_uv
-        src_info["uv_img"] = merge_uv
+        src_info_list = []
+        num_people = len(src_path_list)
 
-        return src_info
+        for i in range(num_people):
+            src_path = src_path_list[i]
+            src_smpl = src_smpl_list[i]
+            masks = masks_list[i]
+            bg_img = bg_img_list[i]
+            offsets = offsets_list[i]
+            links_ids = links_ids_list[i]
+
+            src_info = self.source_setup(src_path, src_smpl, masks, bg_img, offsets=offsets,
+                                         links_ids=links_ids, visualizer=visualizer)
+
+            face_ids = []
+            for _ in range(src_info["num_source"]):
+                face_ids.append(selected_face_ids[i])
+
+            self.flow_comp.add_rendered_selected_f2pts(src_info, face_ids)
+            src_info_list.append(src_info)
+
+            # if visualizer is not None:
+            #     visualizer.vis_named_img(f"uv_img_{i}", src_info["uv_img"])
+
+        merge_src_info = self.flow_comp.merge_src_info(src_info_list, primary_ids=primary_ids)
+        self.src_info = merge_src_info
+
+        if visualizer is not None:
+            visualizer.vis_named_img("uv_img", merge_src_info["uv_img"])
+
+        # print(merge_src_info["img"].shape)
+        # print(merge_src_info["cam"].shape)
+        # print(merge_src_info["shape"].shape)
+        # print(merge_src_info["pose"].shape)
+        # print(merge_src_info["fim"].shape)
+        # print(merge_src_info["wim"].shape)
+        # print(merge_src_info["f2pts"].shape)
+        # print(merge_src_info["selected_f2pts"].shape)
+        # print(merge_src_info["only_vis_f2pts"].shape)
+        #
+        # for merge_feats in merge_src_info["feats"][0]:
+        #     print(merge_feats.shape)
+        #
+        # for merge_feats in merge_src_info["feats"][1]:
+        #     print(merge_feats.shape)
+
+        return merge_src_info

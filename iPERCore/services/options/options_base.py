@@ -7,7 +7,7 @@ from .options_setup import setup
 
 class BaseOptions(object):
     def __init__(self):
-        self._parser = argparse.ArgumentParser()
+        self._parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         self._initialized = False
         self.is_train = False
 
@@ -22,7 +22,7 @@ class BaseOptions(object):
         self._parser.add_argument("--batch_size", type=int, default=1, help="input batch size")
         self._parser.add_argument("--time_step", type=int, default=1, help="time step size")
         self._parser.add_argument("--intervals", type=int, default=1, help="the interval between frames.")
-        self._parser.add_argument("--load_epoch", type=int, default=-1,
+        self._parser.add_argument("--load_iter", type=int, default=-1,
                                   help="which epoch to load? set to -1 to use latest cached model")
 
         self._parser.add_argument("--bg_ks", default=11, type=int, help="dilate kernel size of background mask.")
@@ -39,7 +39,9 @@ class BaseOptions(object):
         # gpu settings
         self._parser.add_argument("--gpu_ids", type=str, default="0",
                                   help="gpu ids: e.g. 0  0,1,2, 0,2.")
-        self._parser.add_argument("--no_cudnn", action="store_true",
+        self._parser.add_argument("--local_rank", type=int, default=0,
+                                  help="the local rank for distributed training.")
+        self._parser.add_argument("--use_cudnn", action="store_true",
                                   help="whether to use cudnn or not, if true, do not use.")
 
         # meta-data settings
@@ -57,9 +59,10 @@ class BaseOptions(object):
         if not self._initialized:
             self.initialize()
 
-        opt = self._parser.parse_args()
+        # opt = self._parser.parse_args()
+        opt, extra_args = self._parser.parse_known_args()
         opt.is_train = self.is_train
 
-        cfg = setup(opt)
+        cfg = setup(opt, extra_args)
 
         return cfg

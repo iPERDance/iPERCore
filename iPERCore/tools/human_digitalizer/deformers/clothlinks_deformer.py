@@ -14,7 +14,7 @@ class ClothSmplLinkDeformer(object):
     def __init__(self,
                  cloth_parse_ckpt_path="./assets/checkpoints/mattors/exp-schp-lip.pth",
                  smpl_model="assets/checkpoints/pose3d/smpl_model.pkl",
-                 part_path="assets/checkpoints/pose3d/smpl_part_info.json",
+                 part_path="assets/configs/pose3d/smpl_part_info.json",
                  device=torch.device("cuda:0")):
 
         self.device = device
