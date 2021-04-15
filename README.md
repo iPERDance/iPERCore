@@ -2,19 +2,20 @@
 
 ### Update News
 - [x] 15/04/2021, iPERCore-0.2.0, including
-   -[x] Add [Training](./docs/train_details.md)
-    
-   -[x] Add [Novel View Synthesis](https://github.com/iPERDance/iPERCore/blob/main/docs/scripts_runner.md#run-novel-view-synthesis)
+  
+   * Add [Training](./docs/train_details.md)
    
-   -[x] Add [Motion Imitation with bullet-time effects](https://github.com/iPERDance/iPERCore/blob/main/docs/scripts_runner.md#run-motion-imitation-with-bullet-time-effect)
+   * Add [Novel View Synthesis](https://github.com/iPERDance/iPERCore/blob/main/docs/scripts_runner.md#run-novel-view-synthesis)
    
-   -[x] Add [Motion Imitation with multi-view outputs](https://github.com/iPERDance/iPERCore/blob/main/docs/scripts_runner.md#run-motion-imitation-with-multi-view-outputs)
+   * Add [Motion Imitation with bullet-time effects](https://github.com/iPERDance/iPERCore/blob/main/docs/scripts_runner.md#run-motion-imitation-with-bullet-time-effect)
    
-   -[x] Add [Appearance Transfer](https://github.com/iPERDance/iPERCore/blob/main/docs/scripts_runner.md#run-human-appearance-transfer)
+   * Add [Motion Imitation with multi-view outputs](https://github.com/iPERDance/iPERCore/blob/main/docs/scripts_runner.md#run-motion-imitation-with-multi-view-outputs)
    
-   -[x] Add [A Unified synthesizer: Motion Imitation + Appearance Transfer + Novel View Synthesis](https://github.com/iPERDance/iPERCore/blob/main/docs/scripts_runner.md#human-appearance-transfer-with-motion-imitation-and-novel-view-synthesis)
+   * Add [Appearance Transfer](https://github.com/iPERDance/iPERCore/blob/main/docs/scripts_runner.md#run-human-appearance-transfer)
    
-   -[x] Update torch 1.8+ with RTX30+ GPUs.
+   * Add [A Unified synthesizer: Motion Imitation + Appearance Transfer + Novel View Synthesis](https://github.com/iPERDance/iPERCore/blob/main/docs/scripts_runner.md#human-appearance-transfer-with-motion-imitation-and-novel-view-synthesis)
+   
+   * Update torch 1.8+ with RTX30+ GPUs.
   
 - [x] 12/20/2020, A precompiled version on Windows has been released! [[Usage]](https://github.com/iPERDance/iPERCore/wiki/How-to-use-the-released-version-on-windows%3F)
 - [x] 12/10/2020, iPERCore-0.1.1, supports Windows.
