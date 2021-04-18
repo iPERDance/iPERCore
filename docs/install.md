@@ -91,7 +91,16 @@ Or manually download the checkpoints and samples (option).
 - checkpoints.zip: https://download.impersonator.org/iper_plus_plus_latest_checkpoints.zip
 - samples.zip: https://download.impersonator.org/iper_plus_plus_latest_samples.zip
 
-Unzip all of them, and move them to the `./assets` directory.
+**If the above links are broken, try to download the "assets/checkpoints" and "assets/samples.zip" from the following available links:**
+* [OneDrive 1](https://shanghaitecheducn-my.sharepoint.com/:f:/g/personal/liandz_shanghaitech_edu_cn/ErkIzzi6n0RLrP9gP5k2tpcB2BRzeRMok9moOgEUnpqX8A?e=Pq1omh)
+
+* [OneDrive 2](https://shanghaitecheducn-my.sharepoint.com/:f:/g/personal/liuwen_shanghaitech_edu_cn/EiOrbTo4yUtBrgQ4KiKswxUB-UyYl69W-pSVMNeFcXwYIw?e=z1Fyea)
+
+* [OneDrive 3](https://shanghaitecheducn-my.sharepoint.com/:f:/g/personal/qianych_shanghaitech_edu_cn/Evg7YNYDV5xGjox7qIsUe1IBvh3vodNPY1-1x4JpfX1bcQ?e=oW6Qcn)
+
+* [BaiduPan](https://pan.baidu.com/s/1zEpPaU505Df13LOyF-H3Pw), password: `uomm`
+
+Unzip **checkpoints.zip** and **samples.zip**, and move them to the `./assets` directory.
 
 
 
