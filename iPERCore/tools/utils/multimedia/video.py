@@ -673,9 +673,17 @@ def check_video_has_audio(video_path):
 
     ffprobe_exe_path = os.environ.get("ffprobe_exe_path", default_ffprobe_exe_path)
 
-    cmd = f"{ffprobe_exe_path} -show_entries stream=codec_type -of json {video_path} -loglevel error"
-    print(cmd)
-    results = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
+    # cmd = f"{ffprobe_exe_path} -show_entries stream=codec_type -of json {video_path} -loglevel error"
+    cmd = [
+        ffprobe_exe_path,
+        "-show_entries",
+        "stream=codec_type",
+        "-of", "json",
+        video_path,
+        "-loglevel", "error"
+    ]
+    print(" ".join(cmd))
+    results = subprocess.run(cmd, stdout=subprocess.PIPE)
 
     result_params = json.loads(results.stdout)
     # print(result_params)
