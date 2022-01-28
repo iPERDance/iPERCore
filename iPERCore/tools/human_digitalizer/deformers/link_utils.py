@@ -75,7 +75,7 @@ class SmplLinker(object):
             self.smpl_part_info = json.load(f)
 
         self.right_leg_verts_idx = np.array(self.smpl_part_info['03_right_leg']['vertex'])
-        self.left_leg_verts_idx = np.array(self.smpl_part_info['04_left_arm']['vertex'])
+        self.left_leg_verts_idx = np.array(self.smpl_part_info['04_left_leg']['vertex'])
 
         self.right_leg_inner_verts_idx = self.get_inner_verts_idx_of_leg(self.right_leg_verts_idx, inner_part_rate=0.3,
                                                                          right=True)
