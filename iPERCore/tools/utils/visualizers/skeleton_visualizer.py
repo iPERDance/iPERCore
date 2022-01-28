@@ -107,6 +107,13 @@ def draw_skeleton(orig_img, joints, radius=6, transpose=True, threshold=0.25):
             -1, 0, 0, 1, 2, -1, 5, 5, 6, 7,  8,  5, 6, 11, 12, 13, 14, 19, 19, 15, 22, 22, 16
         ])
 
+    # SMPL joints-24
+    elif joints.shape[0] == 24:
+        parents = np.array([
+           # 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
+            -1, 0, 0, 0, 1, 2, 3, 4, 5, 6,  7,  8, -1,  9,  9, 12, 13, 14, 16, 17, 18, 19, 20, 21
+        ])
+
     # cmu-body-25
     elif joints.shape[0] == 25:
         parents = np.array([

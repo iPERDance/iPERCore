@@ -81,7 +81,12 @@ class BaseSMPL(nn.Module):
             offsets (torch.Tensor) : (N, nv, 3) or 0;
             links_ids (None or np.ndarray or torch.tensor): (nv, 2) or (bs, nv, 2)
         Returns:
-
+            detail_info (dict): it contains the following information,
+                --cam (torch.Tensor): (N, 3)
+                --pose (torch.Tensor): (N, 72)
+                --shape (torch.Tensor): (N, 10)
+                --theta (torch.Tensor): (N, 85)
+                --verts (torch.Tensor): (N, 6890, 3)
         """
 
         cam = theta[:, 0:3]
