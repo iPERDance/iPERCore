@@ -65,13 +65,12 @@ Coming soon!
 
 ## Citation
 ```
-@misc{liu2020liquid,
-      title={Liquid Warping GAN with Attention: A Unified Framework for Human Image Synthesis}, 
-      author={Wen Liu and Zhixin Piao, Zhi Tu, Wenhan Luo, Lin Ma and Shenghua Gao},
-      year={2020},
-      eprint={2011.09055},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+@article{liu2021liquid,
+  title={Liquid warping GAN with attention: A unified framework for human image synthesis},
+  author={Liu, Wen and Piao, Zhixin and Tu, Zhi and Luo, Wenhan and Ma, Lin and Gao, Shenghua},
+  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  year={2021},
+  publisher={IEEE}
 }
 
 @InProceedings{lwb2019,
