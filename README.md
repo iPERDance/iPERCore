@@ -17,7 +17,7 @@
    
    * Update torch 1.8+ with RTX30+ GPUs.
   
-- [x] 12/20/2020, A precompiled version on Windows has been released! [[Usage]](https://github.com/iPERDance/iPERCore/wiki/How-to-use-the-released-version-on-windows%3F)
+[comment]: <> (- [x] 12/20/2020, A precompiled version on Windows has been released! [[Usage]]&#40;https://github.com/iPERDance/iPERCore/wiki/How-to-use-the-released-version-on-windows%3F&#41;)
 - [x] 12/10/2020, iPERCore-0.1.1, supports Windows.
 - [x] 12/06/2020, iPERCore-0.1, all the base codes. The motion imitation scripts.
 
@@ -29,9 +29,13 @@ human motion imitation, appearance transfer, and novel view synthesis. Currently
 IEEE TPAMI. It is an extension of our previous ICCV project [impersonator](https://github.com/svip-lab/impersonator), 
 and it has a more powerful ability in generalization and produces higher-resolution results  (512 x 512, 1024 x 1024) than the previous ICCV version.
 
-|  🧾 Colab Notebook  | Released (Windows)  |   📑 Paper    | 📱 Website | 📂 Dataset | 💡 Bilibili | ✒ Forum |
+<!-- |  🧾 Colab Notebook  | Released (Windows)  |   📑 Paper    | 📱 Website | 📂 Dataset | 💡 Bilibili | ✒ Forum |
  :-: | :-: | :-: | :-: | :-: | :-: | :-: |
-| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1bwUnj-9NnJA2EMr7eWO4I45UuBtKudg_?usp=sharing) | [[Usage]](https://github.com/iPERDance/iPERCore/wiki/How-to-use-the-released-version-on-windows%3F) | [paper](https://arxiv.org/pdf/2011.09055.pdf) | [website](https://www.impersonator.org/work/impersonator-plus-plus.html) | [Dataset](https://svip-lab.github.io/dataset/iPER_dataset.html) | [bilibili](https://space.bilibili.com/1018066133) | [Forum](https://discuss.impersonator.org/)|
+| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1bwUnj-9NnJA2EMr7eWO4I45UuBtKudg_?usp=sharing) | [[Usage]](https://github.com/iPERDance/iPERCore/wiki/How-to-use-the-released-version-on-windows%3F) | [paper](https://arxiv.org/pdf/2011.09055.pdf) | [website](https://www.impersonator.org/work/impersonator-plus-plus.html) | [Dataset](https://svip-lab.github.io/dataset/iPER_dataset.html) | [bilibili](https://space.bilibili.com/1018066133) | [Forum](https://discuss.impersonator.org/)| -->
+
+|  🧾 Colab Notebook |   📑 Paper    | 📱 Website | 📂 Dataset | 💡 Bilibili |
+ :-: | :-: | :-: | :-: | :-: |
+| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1bwUnj-9NnJA2EMr7eWO4I45UuBtKudg_?usp=sharing) | [paper](https://arxiv.org/pdf/2011.09055.pdf) | [website](https://www.impersonator.org/work/impersonator-plus-plus.html) | [Dataset](https://svip-lab.github.io/dataset/iPER_dataset.html) | [bilibili](https://space.bilibili.com/1018066133) |
 
 
 ![](https://www.impersonator.org/images/motion_results.png)
@@ -59,9 +63,6 @@ Please follows the instructions in [install.md](./docs/install.md) to install th
 
 ### 2. Run with Console (scripts) mode
 See [scripts_runner](./docs/scripts_runner.md) for more details.
-
-### 3. Run with GUI mode
-Coming soon!
 
 ## Citation
 ```
