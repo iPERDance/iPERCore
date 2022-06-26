@@ -6,8 +6,6 @@ All available download links:
 
 * [OneDrive 2](https://shanghaitecheducn-my.sharepoint.com/:f:/g/personal/liuwen_shanghaitech_edu_cn/EiOrbTo4yUtBrgQ4KiKswxUB-UyYl69W-pSVMNeFcXwYIw?e=z1Fyea)
 
-* [OneDrive 3](https://shanghaitecheducn-my.sharepoint.com/:f:/g/personal/qianych_shanghaitech_edu_cn/Evg7YNYDV5xGjox7qIsUe1IBvh3vodNPY1-1x4JpfX1bcQ?e=oW6Qcn)
-
 * [BaiduPan](https://pan.baidu.com/s/1zEpPaU505Df13LOyF-H3Pw), password: `uomm` 
 
 ## Download iPER dataset
