@@ -35,7 +35,7 @@
  
  - [Download and install](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html) the CUDA >= 10.1;
  
- - [Download](http://101.32.75.151:12345/iper_plus_plus_latest_executables.zip) ffmpeg. Unzip the `executables.zip` and move
+ - [Download](http://101.32.75.151:10086/executables.zip) ffmpeg. Unzip the `executables.zip` and move
  the `executables` into `./assets` folder.
    
  
@@ -88,8 +88,8 @@ sh assets/download.sh
 ```
 
 Or manually download the checkpoints and samples (option).
-- checkpoints.zip: http://101.32.75.151:12345/iper_plus_plus_latest_checkpoints.zip
-- samples.zip: http://101.32.75.151:12345/iper_plus_plus_latest_samples.zip
+- checkpoints.zip: http://101.32.75.151:10086/checkpoints.zip
+- samples.zip: http://101.32.75.151:10086/samples.zip
 
 **If the above links are broken, try to download the "assets/checkpoints" and "assets/samples.zip" from the following available links:**
 * [OneDrive 1](https://shanghaitecheducn-my.sharepoint.com/:f:/g/personal/liandz_shanghaitech_edu_cn/ErkIzzi6n0RLrP9gP5k2tpcB2BRzeRMok9moOgEUnpqX8A?e=Pq1omh)
