@@ -21,7 +21,7 @@ PIP_VERSION = "20.2.4"
 # torch 1.7.0       +cu101      cu102      +cu110
 # torch 1.6.0       +cu101      cu102
 
-VALID_CUDA = [10.1, 10.2, 11.0, 11.1]
+VALID_CUDA = [10.1, 10.2, 11.0, 11.1, 11.6]
 
 DEFAULT_LINUX_CUDA_TORCH = {
     "cu111": "1.8.1",
