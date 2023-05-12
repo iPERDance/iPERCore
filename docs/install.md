@@ -30,31 +30,32 @@
    apt-get install git 
    ```
    
-### Windows 10
+### Windows
  - [Download and install](https://git-scm.com/download/win) Git. 
  
- - [Download and install](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html) the CUDA >= 10.1;
+ - [Download and install](https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html) the CUDA >= 11.1;
  
  - [Download](http://101.32.75.151:10086/executables.zip) ffmpeg. Unzip the `executables.zip` and move
  the `executables` into `./assets` folder.
  
- - [Download and install](https://visualstudio.microsoft.com/vs/older-downloads) Build Tools for Visual Studio 2017 (version 15.9)
+ - [Download and install](https://visualstudio.microsoft.com/vs/older-downloads) Build Tools for Visual Studio 2019
  - Make sure to select these options before the installation <br /> 
  
-   ![Capture](https://user-images.githubusercontent.com/34035011/185178759-0def4ea4-c5bc-4469-9cef-7c5cfdfdfb2d.PNG)
+   ![image](https://github.com/justinjohn0306/iPERCore/assets/34035011/2c713446-d9de-4bb0-a634-3d29cc6eccc1)
+
 
    
  
 ## Python Dependencies
 
 ### Setup Python
-Using Python 3.6+. You can use Anaconda Python 3.6+, or the native Python 3.6+.
+Using Python 3.7+. You can use Anaconda Python 3.7+, or the native Python 3.7+.
 Whatever Python you have used, be sure to create a virtual environment firstly.
 
  - For Anaconda Python
     ```shell
-   conda create -n venv python=3.6.6
-   conda activate venv
+   conda create -n iperc python=3.7
+   conda activate iperc
    
    ```
 
@@ -71,6 +72,8 @@ Whatever Python you have used, be sure to create a virtual environment firstly.
 Install iPERCore by running the follows
 
 ```shell
+%comspec% /k "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
+set DISTUTILS_USE_SDK=1
 python setup.py develop
 ```
 
